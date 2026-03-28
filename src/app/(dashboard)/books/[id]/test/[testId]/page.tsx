@@ -1,0 +1,405 @@
+import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import DeleteTestButton from './DeleteTestButton';
+
+export default async function ReviewTestPage({ params }: { params: { id: string, testId: string } }) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Fetch test details with all questions
+  const { data: test, error } = await supabase
+    .from('tests')
+    .select(`
+      *,
+      books (title, author),
+      test_items (
+        id,
+        item_order,
+        points,
+        question_bank (
+          id,
+          q_type,
+          cognitive_level,
+          question_text,
+          correct_answer,
+          distractors,
+          rubric,
+          justification
+        )
+      )
+    `)
+    .eq('id', params.testId)
+    .eq('user_id', user?.id)
+    .single();
+
+  if (error || !test) {
+    notFound();
+  }
+
+  const t = test as any;
+
+  // Sort items by order
+  const items = t.test_items.sort((a: any, b: any) => a.item_order - b.item_order);
+
+  return (
+    <div className="review-test">
+      <div className="page-header pb-4 border-b border-light">
+        <div>
+          <Link href={`/books/${params.id}`} className="back-link mb-2">← Volver al Libro</Link>
+          <h1 className="page-title">{t.title}</h1>
+          <p className="page-subtitle">
+            {t.books.title} • {t.target_grade} • {t.total_score} puntos
+          </p>
+        </div>
+        
+        <div className="export-actions">
+          <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
+          <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary" target="_blank">
+            <span className="mr-2">📄</span> Exportar Alumno (Word)
+          </a>
+          <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow" target="_blank">
+            <span className="mr-2">✅</span> Exportar Docente (Word)
+          </a>
+        </div>
+      </div>
+
+      <div className="test-content mt-8">
+        <div className="instructions-box p-6 mb-8">
+          <h3 className="section-title text-sm uppercase tracking-wide text-secondary mb-2">Instrucciones Generales</h3>
+          <p className="text-primary">{t.instructions || 'Lee atentamente cada pregunta y responde según lo solicitado.'}</p>
+        </div>
+
+        <div className="questions-list">
+          {items.map((item: any, i: number) => {
+            const q = item.question_bank;
+            return (
+              <div key={item.id} className="question-card glass-panel" id={`q-${i+1}`}>
+                <div className="q-header">
+                  <div className="q-number">{i + 1}</div>
+                  <div className="q-meta">
+                    <span className={`badge-level level-${q.cognitive_level}`}>
+                      {translateLevel(q.cognitive_level)}
+                    </span>
+                    <span className="badge-type">
+                      {translateType(q.q_type)}
+                    </span>
+                    <span className="badge-points">{item.points} pt{item.points > 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+
+                <div className="q-body">
+                  <h3 className="q-text">{q.question_text}</h3>
+                  
+                  {/* Options for Multiple Choice */}
+                  {q.q_type === 'multiple_choice' && (
+                    <div className="q-options">
+                      {/* En una app de producción, aquí mezclaríamos las alternativas visualmente, 
+                          pero marcando la correcta para el profesor */ }
+                      <div className="option correct-option">
+                        <span className="opt-letter">a)</span> {q.correct_answer} <span className="correct-check">✓</span>
+                      </div>
+                      {q.distractors?.map((d: string, index: number) => (
+                        <div key={index} className="option">
+                          <span className="opt-letter">{['b', 'c', 'd'][index]})</span> {d}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* True/False */}
+                  {q.q_type === 'true_false' && (
+                    <div className="q-tf">
+                      <div className="tf-choice">Verdadero / Falso</div>
+                      <div className="tf-answer">Respuesta esperada: <strong>{q.correct_answer}</strong></div>
+                    </div>
+                  )}
+
+                  {/* Development */}
+                  {q.q_type === 'development' && (
+                    <div className="q-dev">
+                      <div className="dev-lines">
+                        <div className="line"></div>
+                        <div className="line"></div>
+                        <div className="line"></div>
+                        <div className="line"></div>
+                      </div>
+                      <div className="dev-rubric mt-4">
+                        <div className="rubric-title">Pauta de Corrección (Docente):</div>
+                        <p>{q.rubric || q.correct_answer}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Justification from AI */}
+                {q.justification && (
+                  <div className="q-footer">
+                    <div className="q-justification">
+                      <span className="ai-icon">📘</span> <strong>Por qué es correcta:</strong> {q.justification}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <style>{`
+        .review-test {
+          padding-bottom: 4rem;
+          max-width: 900px;
+          margin: 0 auto;
+        }
+        
+        .back-link { color: var(--text-muted); display: inline-block; }
+        .back-link:hover { color: white; }
+        
+        .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+        .border-light { border-color: var(--border-light); }
+        .pb-4 { padding-bottom: 1rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mt-4 { margin-top: 1rem; }
+        .mt-8 { margin-top: 2rem; }
+        .mr-2 { margin-right: 0.5rem; }
+        .p-6 { padding: 1.5rem; }
+        .text-sm { font-size: 0.85rem; }
+        .text-primary { color: var(--text-primary); font-size: 1.05rem; line-height: 1.6; }
+        .uppercase { text-transform: uppercase; }
+        .tracking-wide { letter-spacing: 0.05em; }
+        .text-secondary { color: var(--text-secondary); }
+        
+        .instructions-box {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-light);
+          border-radius: var(--radius-lg);
+          border-left: 4px solid var(--accent-primary);
+        }
+        
+        .page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+        }
+
+        @media (max-width: 768px) {
+          .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+          .export-actions { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
+          .export-actions .btn { width: 100%; justify-content: center; }
+        }
+
+        .export-actions {
+          display: flex;
+          gap: 1rem;
+        }
+        
+        .btn-glow {
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .questions-list {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+        }
+
+        .question-card {
+          border-radius: var(--radius-lg);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-light);
+          box-shadow: var(--shadow-sm);
+          overflow: hidden;
+        }
+
+        .q-header {
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid var(--border-light);
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          background: var(--bg-tertiary);
+        }
+
+        .q-number {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: var(--accent-primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          color: white;
+          flex-shrink: 0;
+          box-shadow: var(--shadow-sm);
+        }
+
+        .q-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          align-items: center;
+        }
+
+        .badge-level, .badge-type, .badge-points {
+          font-size: 0.75rem;
+          padding: 0.2rem 0.6rem;
+          border-radius: 4px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .badge-points { background: white; border: 1px solid var(--border-light); color: var(--text-secondary); }
+        .badge-type { background: var(--bg-primary); border: 1px solid var(--border-light); color: var(--text-primary); }
+        
+        .level-locate { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
+        .level-interpret { background: rgba(139, 92, 246, 0.2); color: #A78BFA; }
+        .level-reflect { background: rgba(236, 72, 153, 0.2); color: #F472B6; }
+
+        .q-body {
+          padding: 1.5rem;
+        }
+
+        .q-text {
+          font-size: 1.15rem;
+          color: var(--text-primary);
+          margin-bottom: 1.5rem;
+          line-height: 1.5;
+          font-weight: 600;
+          font-family: var(--font-serif);
+        }
+
+        .q-options {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .option {
+          padding: 1rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--border-light);
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          font-family: var(--font-serif);
+        }
+
+        .correct-option {
+          border-color: rgba(16, 185, 129, 0.4);
+          background: rgba(16, 185, 129, 0.1);
+          color: var(--text-primary);
+          font-weight: 500;
+        }
+
+        .opt-letter {
+          font-weight: 600;
+          min-width: 20px;
+        }
+
+        .correct-check {
+          color: var(--success);
+          margin-left: auto;
+          font-weight: bold;
+        }
+
+        .q-tf {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .tf-choice {
+          padding: 1rem;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-light);
+          border-radius: var(--radius-sm);
+          text-align: center;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          color: var(--text-secondary);
+        }
+
+        .tf-answer {
+          color: var(--success);
+          font-size: 0.95rem;
+        }
+
+        .dev-lines {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .line {
+          width: 100%;
+          height: 1px;
+          background: var(--border-light);
+        }
+
+        .dev-rubric {
+          padding: 1.25rem;
+          background: rgba(16, 185, 129, 0.05);
+          border-left: 3px solid var(--success);
+          border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
+
+        .rubric-title {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: var(--success);
+          margin-bottom: 0.5rem;
+          text-transform: uppercase;
+        }
+
+        .dev-rubric p {
+          color: var(--text-primary);
+          font-size: 0.95rem;
+          line-height: 1.6;
+        }
+
+        .q-footer {
+          padding: 1rem 1.5rem;
+          border-top: 1px dashed var(--border-light);
+          background: var(--bg-primary);
+        }
+
+        .q-justification {
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+        }
+
+        .ai-icon {
+          color: var(--accent-primary);
+          margin-right: 0.25rem;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// Helpers for translations
+function translateLevel(level: string) {
+  switch(level) {
+    case 'locate': return 'Localizar';
+    case 'interpret': return 'Interpretar';
+    case 'reflect': return 'Reflexionar';
+    default: return level;
+  }
+}
+
+function translateType(type: string) {
+  switch(type) {
+    case 'multiple_choice': return 'Sel. Múltiple';
+    case 'true_false': return 'Verd. o Falso';
+    case 'development': return 'Desarrollo';
+    default: return type;
+  }
+}
