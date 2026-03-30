@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createAuthClient } from '@/lib/supabase/server';
 import { extractTextFromPdf } from '@/lib/pdf/extract';
 import { extractTextFromEpub } from '@/lib/pdf/extractEpub';
 import { normalizeText } from '@/lib/pdf/normalize';
@@ -9,31 +10,17 @@ export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro on normal rou
 
 export async function POST(request: Request) {
   try {
+    const authClient = createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    
-    // Auth check
-    let userId = null;
-    const testAdminId = request.headers.get('x-test-admin-id');
-    
-    if (testAdminId) {
-      userId = testAdminId;
-    } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        // TEMPORARY PROOF OF CONCEPT BYPASS
-        const { data: profiles } = await supabase.from('profiles').select('id').limit(1);
-        if (profiles && profiles.length > 0) {
-           userId = profiles[0].id;
-        } else {
-           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-      } else {
-        userId = user.id;
-      }
-    }
+    const userId = user.id;
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -158,8 +145,15 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Upload Error:', error);
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : 'Unknown error';
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
