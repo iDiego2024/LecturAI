@@ -1,19 +1,22 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 
 import BookProcessingClient from './BookProcessingClient';
 
 export default async function BookDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    redirect('/login');
+  }
 
   // Fetch book and related data
   const { data: bookData, error } = await supabase
     .from('books')
     .select('*')
     .eq('id', params.id)
-    .eq('user_id', user?.id)
+    .eq('user_id', user.id)
     .single();
 
   const book = bookData as any;
