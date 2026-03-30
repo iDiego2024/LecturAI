@@ -60,8 +60,13 @@ export default function UploadBookPage() {
 
       setBookId(data.book.id);
       setStatus('processing');
-      setProcessingStatus('Iniciando procesamiento...');
-      setProgress(5);
+      setProcessingStatus('Preparando análisis del libro...');
+      setProgress(30);
+
+      // El procesamiento real de chunks/consolidación se ejecuta desde
+      // la vista del libro (BookProcessingClient). Redirigimos de inmediato
+      // para evitar que esta pantalla quede estancada en "Iniciando...".
+      router.push(`/books/${data.book.id}`);
 
     } catch (err) {
       console.error(err);
