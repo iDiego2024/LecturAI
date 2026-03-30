@@ -13,8 +13,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Esta opción ayuda a evitar errores de manifiesto en builds de Vercel y optimiza para serverless
-  output: 'standalone',
+  // En Vercel no necesitamos `standalone`; Vercel realiza su propio tracing.
+  // Mantenerlo desactivado evita errores ENOENT al copiar manifests en App Router.
 };
 
 module.exports = nextConfig;

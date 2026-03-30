@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { analyzeBookNarrative } from '@/lib/gemini/analyze';
+import { createClient as createAuthClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60; 
 
@@ -9,32 +10,29 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const authClient = createAuthClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
-    
-    // Auth check
-    let userId = null;
-    const testAdminId = request.headers.get('x-test-admin-id');
-    if (testAdminId) {
-      userId = testAdminId;
-    } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-         // TEST BYPASS
-         const { data: profiles } = await supabase.from('profiles').select('id').limit(1);
-         if (profiles && profiles.length > 0) {
-            userId = profiles[0].id;
-         } else {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-         }
-      } else {
-         userId = user.id;
-      }
-    }
 
     const bookId = params.id;
+
+    const { data: ownedBook, error: ownedBookError } = await authClient
+      .from('books')
+      .select('id')
+      .eq('id', bookId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (ownedBookError || !ownedBook) {
+      return NextResponse.json({ error: 'Book not found or unauthorized' }, { status: 404 });
+    }
     
     // Get active job
     const { data: job, error: jobError } = await supabase
