@@ -22,6 +22,20 @@ export async function POST(request: Request) {
     );
     const userId = user.id;
 
+    // Ensure the profile exists (older accounts or externally-created users
+    // may exist in auth.users but not yet in public.profiles).
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: user.id,
+          email: user.email ?? 'unknown@lecturai.local',
+          full_name: (user.user_metadata as { full_name?: string } | null)?.full_name ?? null,
+        },
+        { onConflict: 'id' }
+      );
+    if (profileError) throw profileError;
+
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
