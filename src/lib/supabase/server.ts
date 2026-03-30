@@ -7,7 +7,7 @@ export function createClient() {
 
   const client = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -27,16 +27,6 @@ export function createClient() {
       },
     }
   )
-
-  // TEMPORARY TEST BYPASS
-  const originalGetUser = client.auth.getUser.bind(client.auth);
-  client.auth.getUser = async () => {
-    const { data: profiles } = await client.from('profiles').select('id').limit(1);
-    if (profiles && profiles.length > 0) {
-       return { data: { user: { id: profiles[0].id, email: 'test@lecturai.com' } as any }, error: null } as any;
-    }
-    return originalGetUser();
-  };
 
   return client;
 }
