@@ -41,11 +41,9 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/signup') &&
     request.nextUrl.pathname !== '/' // allow landing page
   ) {
-    // no user, potentially respond by redirecting the user to the login page
-    // TEMPORARY TEST BYPASS
-    // const url = request.nextUrl.clone()
-    // url.pathname = '/login'
-    // return NextResponse.redirect(url)
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
   // Redirect logged-in users away from auth pages
