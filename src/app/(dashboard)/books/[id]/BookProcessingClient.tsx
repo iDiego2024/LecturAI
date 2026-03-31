@@ -69,7 +69,7 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
       
       const data = await res.json();
       
-      if (!res.ok) {
+      if (!res.ok || data.error) {
         throw new Error(data.error || data.details || 'Error desconocido');
       }
 
@@ -92,6 +92,8 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
          setStatus('consolidating');
          setCurrentAction('Consolidando análisis...');
          await runConsolidation();
+      } else {
+        throw new Error('Respuesta inesperada al procesar el libro.');
       }
 
     } catch (err: any) {

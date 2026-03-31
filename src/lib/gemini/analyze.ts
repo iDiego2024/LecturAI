@@ -20,6 +20,10 @@ export async function analyzeBookNarrative(bookId: string, fullText: string) {
       .update({ processing_status: 'analyzing', processing_progress: 75 })
       .eq('id', bookId);
 
+    // Make consolidation idempotent so retries don't duplicate derived data.
+    await supabase.from('book_entities').delete().eq('book_id', bookId);
+    await supabase.from('book_themes').delete().eq('book_id', bookId);
+
     // 2. Call Gemini with retry logic
     let result;
     let retries = 0;
@@ -50,7 +54,7 @@ export async function analyzeBookNarrative(bookId: string, fullText: string) {
     const analysis = JSON.parse(responseText.replace(/```json\n?|\n?```/g, ''));
 
     // 3. Save to database
-    
+
     // Characters
     if (analysis.characters?.length > 0) {
       const charRecords = analysis.characters.map((c: any) => ({
