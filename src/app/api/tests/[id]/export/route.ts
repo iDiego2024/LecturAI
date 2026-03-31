@@ -3,6 +3,15 @@ import { createClient } from '@/lib/supabase/server';
 import { generateWordDocument } from '@/lib/export/docx';
 import { isDemoEmail } from '@/lib/demo';
 
+function toSafeAsciiFilename(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -32,7 +41,8 @@ export async function GET(
       userId: user.id,
     });
 
-    const filename = `${title || 'Prueba'}_${version === 'teacher' ? 'Docente' : 'Alumno'}.docx`.replace(/\s+/g, '_');
+    const baseFilename = `${title || 'Prueba'}_${version === 'teacher' ? 'Word_docente' : 'Word_alumno'}`;
+    const filename = `${toSafeAsciiFilename(baseFilename) || 'Prueba'}.docx`;
 
     // Return as downloadable file
     return new NextResponse(new Uint8Array(buffer), {

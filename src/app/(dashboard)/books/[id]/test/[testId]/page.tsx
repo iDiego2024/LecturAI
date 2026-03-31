@@ -65,10 +65,10 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
             {!isDemo && (
               <>
                 <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary action-btn" target="_blank" rel="noopener noreferrer">
-                  <span className="mr-2">📄</span> Alumno
+                  <span className="mr-2">📄</span> Word alumno
                 </a>
                 <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow action-btn" target="_blank" rel="noopener noreferrer">
-                  <span className="mr-2">✅</span> Docente
+                  <span className="mr-2">✅</span> Word docente
                 </a>
               </>
             )}
