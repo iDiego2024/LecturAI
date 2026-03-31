@@ -24,6 +24,8 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
   const [typeMultiple, setTypeMultiple] = useState(60);
   const [typeTrueFalse, setTypeTrueFalse] = useState(20);
   const [typeDev, setTypeDev] = useState(20);
+  const totalCognitive = cogLocate + cogInterpret + cogReflect;
+  const totalTypes = typeMultiple + typeTrueFalse + typeDev;
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +160,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                 onChange={e => setTitle(e.target.value)} 
                 required 
               />
+              <small className="help-text">Será el nombre visible de la evaluación para ti, para el estudiante y en las descargas Word.</small>
             </div>
             
             <div className="form-group mt-4">
@@ -194,6 +197,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                 value={instructions} 
                 onChange={e => setInstructions(e.target.value)} 
               />
+              <small className="help-text">Aquí defines el tono esperado de respuesta: breve, fundamentada, personal o más desarrollada.</small>
             </div>
 
             <div className="form-group mt-4">
@@ -209,6 +213,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                 />
                 <span className="number-display">{questionCount}</span>
               </div>
+              <div className="range-hint">
+                <span>Más breve y ágil</span>
+                <span>Más completa y exigente</span>
+              </div>
+              <small className="help-text">Menos preguntas hace la prueba más rápida; más preguntas amplía la cobertura de habilidades y contenidos.</small>
             </div>
           </section>
         </div>
@@ -220,6 +229,12 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
             
             <div className="distribution-block">
               <h3 className="sub-heading">Habilidades Cognitivas</h3>
+              <p className="group-help">
+                Ajusta la intensidad de pensamiento que tendrá la evaluación. A menor porcentaje, menos preguntas de ese nivel; a mayor porcentaje, más protagonismo tendrá esa exigencia cognitiva.
+              </p>
+              <div className="distribution-summary">
+                Total configurado: <strong>{totalCognitive}%</strong>
+              </div>
               
               <div className="slider-group">
                 <div className="slider-label">
@@ -227,6 +242,10 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{cogLocate}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={cogLocate} onChange={e => setCogLocate(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos foco literal</span>
+                  <span>Más foco literal</span>
+                </div>
                 <small className="help-text">Recordar hechos, personajes y datos explícitos.</small>
               </div>
 
@@ -236,6 +255,10 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{cogInterpret}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={cogInterpret} onChange={e => setCogInterpret(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos inferencia</span>
+                  <span>Más inferencia</span>
+                </div>
                 <small className="help-text">Inferir intenciones, relaciones y motivos.</small>
               </div>
 
@@ -245,6 +268,10 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{cogReflect}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={cogReflect} onChange={e => setCogReflect(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos juicio crítico</span>
+                  <span>Más juicio crítico</span>
+                </div>
                 <small className="help-text">Evaluar, conectar y emitir juicios críticos.</small>
               </div>
             </div>
@@ -253,6 +280,12 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
 
             <div className="distribution-block">
               <h3 className="sub-heading">Tipos de Preguntas</h3>
+              <p className="group-help">
+                Decide qué formato predominará en la prueba. A mayor porcentaje, más veces aparecerá ese tipo de pregunta dentro del total generado.
+              </p>
+              <div className="distribution-summary">
+                Total configurado: <strong>{totalTypes}%</strong>
+              </div>
               
               <div className="slider-group">
                 <div className="slider-label">
@@ -260,6 +293,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{typeMultiple}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={typeMultiple} onChange={e => setTypeMultiple(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos estructura cerrada</span>
+                  <span>Más estructura cerrada</span>
+                </div>
+                <small className="help-text">Ideal para aplicación ágil, corrección rápida y cobertura amplia de contenidos.</small>
               </div>
 
               <div className="slider-group">
@@ -268,6 +306,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{typeTrueFalse}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={typeTrueFalse} onChange={e => setTypeTrueFalse(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos verificación puntual</span>
+                  <span>Más verificación puntual</span>
+                </div>
+                <small className="help-text">Sirve para comprobar comprensión específica de manera simple y directa.</small>
               </div>
 
               <div className="slider-group">
@@ -276,6 +319,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
                   <span>{typeDev}%</span>
                 </div>
                 <input type="range" min="0" max="100" value={typeDev} onChange={e => setTypeDev(parseInt(e.target.value))} className="range-slider" />
+                <div className="range-hint">
+                  <span>Menos elaboración escrita</span>
+                  <span>Más elaboración escrita</span>
+                </div>
+                <small className="help-text">Aumenta la argumentación, la profundidad y la evidencia del pensamiento del estudiante.</small>
               </div>
             </div>
           </section>
@@ -342,8 +390,29 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
         .sub-heading {
           font-size: 1.05rem;
           color: var(--text-primary);
-          margin-bottom: 1.25rem;
+          margin-bottom: 0.65rem;
           font-weight: 600;
+        }
+
+        .group-help {
+          color: var(--text-secondary);
+          line-height: 1.65;
+          font-size: 0.92rem;
+          margin-bottom: 0.85rem;
+        }
+
+        .distribution-summary {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.45rem 0.7rem;
+          margin-bottom: 1rem;
+          border-radius: 999px;
+          background: rgba(255, 244, 232, 0.82);
+          color: #8c4f2a;
+          font-size: 0.84rem;
+          font-weight: 700;
+          border: 1px solid rgba(225, 109, 61, 0.18);
         }
 
         .form-group label {
@@ -395,6 +464,20 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           font-size: 0.9rem;
           color: var(--text-secondary);
           margin-bottom: 0.5rem;
+        }
+
+        .range-hint {
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-top: 0.45rem;
+          color: var(--text-muted);
+          font-size: 0.76rem;
+          line-height: 1.4;
+        }
+
+        .range-hint span:last-child {
+          text-align: right;
         }
 
         /* Custom Range Slider */
