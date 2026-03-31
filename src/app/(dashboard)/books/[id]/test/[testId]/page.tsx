@@ -154,7 +154,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         }
         
         .back-link { color: var(--text-muted); display: inline-block; }
-        .back-link:hover { color: white; }
+        .back-link:hover { color: var(--text-primary); }
         
         .border-b { border-bottom-width: 1px; border-bottom-style: solid; }
         .border-light { border-color: var(--border-light); }
@@ -173,7 +173,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         .text-secondary { color: var(--text-secondary); }
         
         .instructions-box {
-          background: var(--bg-secondary);
+          background: linear-gradient(180deg, rgba(255, 253, 248, 0.94) 0%, rgba(255, 244, 230, 0.94) 100%);
           border: 1px solid var(--border-light);
           border-radius: var(--radius-lg);
           border-left: 4px solid var(--accent-primary);
@@ -183,6 +183,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
+          gap: 1.5rem;
         }
 
         @media (max-width: 768px) {
@@ -194,10 +195,16 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         .export-actions {
           display: flex;
           gap: 1rem;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
+        .export-actions .btn {
+          white-space: nowrap;
         }
         
         .btn-glow {
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+          box-shadow: 0 10px 24px rgba(217, 102, 52, 0.26);
         }
 
         .questions-list {
@@ -220,7 +227,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           display: flex;
           align-items: center;
           gap: 1.25rem;
-          background: var(--bg-tertiary);
+          background: linear-gradient(180deg, rgba(255, 249, 239, 0.9) 0%, rgba(255, 238, 220, 0.9) 100%);
         }
 
         .q-number {
@@ -232,7 +239,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           align-items: center;
           justify-content: center;
           font-weight: 700;
-          color: white;
+          color: var(--text-inverse);
           flex-shrink: 0;
           box-shadow: var(--shadow-sm);
         }
@@ -247,27 +254,27 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         .badge-level, .badge-type, .badge-points {
           font-size: 0.75rem;
           padding: 0.2rem 0.6rem;
-          border-radius: 4px;
-          font-weight: 600;
+          border-radius: 999px;
+          font-weight: 700;
           text-transform: uppercase;
         }
 
-        .badge-points { background: white; border: 1px solid var(--border-light); color: var(--text-secondary); }
-        .badge-type { background: var(--bg-primary); border: 1px solid var(--border-light); color: var(--text-primary); }
+        .badge-points { background: rgba(255, 250, 242, 0.95); border: 1px solid var(--border-light); color: var(--text-secondary); }
+        .badge-type { background: rgba(255, 250, 242, 0.95); border: 1px solid var(--border-light); color: var(--text-primary); }
         
-        .level-locate { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
-        .level-interpret { background: rgba(139, 92, 246, 0.2); color: #A78BFA; }
-        .level-reflect { background: rgba(236, 72, 153, 0.2); color: #F472B6; }
+        .level-locate { background: rgba(47, 153, 103, 0.16); color: #2f9967; }
+        .level-interpret { background: rgba(242, 165, 69, 0.18); color: #b77300; }
+        .level-reflect { background: rgba(217, 102, 52, 0.18); color: #d96634; }
 
         .q-body {
           padding: 1.5rem;
         }
 
         .q-text {
-          font-size: 1.15rem;
+          font-size: 1.08rem;
           color: var(--text-primary);
-          margin-bottom: 1.5rem;
-          line-height: 1.5;
+          margin-bottom: 1.2rem;
+          line-height: 1.6;
           font-weight: 600;
           font-family: var(--font-serif);
         }
@@ -282,7 +289,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           padding: 1rem;
           border-radius: var(--radius-sm);
           border: 1px solid var(--border-light);
-          background: var(--bg-tertiary);
+          background: rgba(255, 250, 242, 0.85);
           color: var(--text-secondary);
           display: flex;
           align-items: flex-start;
@@ -316,12 +323,12 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
 
         .tf-choice {
           padding: 1rem;
-          background: var(--bg-tertiary);
+          background: rgba(255, 250, 242, 0.85);
           border: 1px solid var(--border-light);
           border-radius: var(--radius-sm);
           text-align: center;
           font-weight: 600;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.08em;
           color: var(--text-secondary);
         }
 
@@ -345,7 +352,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
 
         .dev-rubric {
           padding: 1.25rem;
-          background: rgba(16, 185, 129, 0.05);
+          background: rgba(47, 153, 103, 0.08);
           border-left: 3px solid var(--success);
           border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
         }
@@ -367,7 +374,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         .q-footer {
           padding: 1rem 1.5rem;
           border-top: 1px dashed var(--border-light);
-          background: var(--bg-primary);
+          background: rgba(255, 250, 242, 0.75);
         }
 
         .q-justification {

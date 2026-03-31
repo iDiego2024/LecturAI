@@ -323,11 +323,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
         .mt-4 { margin-top: 1rem; }
         .mt-6 { margin-top: 1.5rem; }
         .font-bold { font-weight: 700; }
-        .text-white { color: white; }
+        .text-white { color: var(--text-primary); }
         
         .section-title {
           font-size: 1.25rem;
-          color: white;
+          color: var(--text-primary);
           margin-bottom: 1.5rem;
           padding-bottom: 0.75rem;
           border-bottom: 1px solid var(--border-light);
@@ -335,7 +335,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
 
         .sub-heading {
           font-size: 1.05rem;
-          color: white;
+          color: var(--text-primary);
           margin-bottom: 1.25rem;
           font-weight: 600;
         }
@@ -367,7 +367,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           border-radius: var(--radius-sm);
           border: 1px solid var(--border-light);
           font-weight: 700;
-          color: white;
+          color: var(--text-primary);
           min-width: 60px;
           text-align: center;
         }
@@ -430,11 +430,11 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           justify-content: space-between;
           align-items: center;
           z-index: 20;
-          background: rgba(28, 28, 31, 0.85);
+          background: linear-gradient(180deg, rgba(255, 250, 242, 0.94) 0%, rgba(255, 240, 220, 0.96) 100%);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+          border: 1px solid rgba(180, 110, 68, 0.22);
+          box-shadow: 0 18px 36px rgba(160, 101, 58, 0.16);
         }
 
         @media (max-width: 768px) {
@@ -452,14 +452,14 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
         }
 
         .btn-glow {
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+          box-shadow: 0 12px 26px rgba(217, 102, 52, 0.28);
         }
 
         /* Loading Overlay */
         .loading-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(10, 10, 11, 0.85);
+          background: rgba(255, 248, 239, 0.9);
           backdrop-filter: blur(5px);
           z-index: 100;
           display: flex;
@@ -471,8 +471,8 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           max-width: 400px;
           width: 90%;
           padding: 2.5rem;
-          border: 1px solid var(--border-focus);
-          box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
+          border: 1px solid rgba(180, 110, 68, 0.28);
+          box-shadow: 0 18px 40px rgba(160, 101, 58, 0.2);
         }
 
         .spinner {

@@ -154,7 +154,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
       <style>{`
         .book-detail { padding-bottom: 4rem; }
         .back-link { color: var(--text-muted); display: inline-block; }
-        .back-link:hover { color: white; }
+        .back-link:hover { color: var(--text-primary); }
         
         .mb-4 { margin-bottom: 1rem; }
         .mt-3 { margin-top: 0.75rem; }
@@ -166,7 +166,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         .text-muted { color: var(--text-muted); }
         
         .btn-glow {
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+          box-shadow: 0 12px 26px rgba(217, 102, 52, 0.26);
           padding: 0.75rem 2rem;
           font-size: 1.1rem;
         }
@@ -207,13 +207,13 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         }
 
         .entity-card {
-          background: var(--bg-primary);
+          background: rgba(255, 250, 242, 0.85);
           border: 1px solid var(--border-light);
           border-radius: var(--radius-md);
           padding: 1.25rem;
         }
         
-        .border-accent { border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.05); }
+        .border-accent { border-color: rgba(217, 102, 52, 0.28); background: rgba(217, 102, 52, 0.06); }
 
         .entity-header {
           display: flex;
@@ -229,7 +229,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         }
 
         .entity-badge {
-          background: var(--bg-tertiary);
+          background: rgba(255, 248, 238, 0.9);
           color: var(--text-secondary);
           padding: 0.2rem 0.5rem;
           border-radius: 4px;
@@ -252,7 +252,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
 
         .trait-tag {
           font-size: 0.75rem;
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 248, 238, 0.9);
           color: var(--text-muted);
           padding: 0.2rem 0.6rem;
           border-radius: 100px;

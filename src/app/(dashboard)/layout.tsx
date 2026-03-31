@@ -37,11 +37,11 @@ export default async function DashboardLayout({
         <nav className="sidebar-nav">
           <Link href="/books" className="nav-item">
             <span className="nav-icon">📚</span>
-            Biblioteca
+            Mis Libros
           </Link>
           <Link href="/tests" className="nav-item">
             <span className="nav-icon">📝</span>
-            Mis Pruebas
+            Mis Evaluaciones
           </Link>
         </nav>
 
@@ -73,7 +73,9 @@ export default async function DashboardLayout({
         .dashboard-layout {
           display: flex;
           min-height: 100vh;
-          background: var(--bg-primary);
+          background:
+            radial-gradient(circle at 0% 0%, #ffe0be 0%, transparent 32%),
+            var(--bg-primary);
         }
 
         .sidebar {
@@ -125,7 +127,7 @@ export default async function DashboardLayout({
         }
 
         .nav-item:hover {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.5);
           color: var(--text-primary);
         }
 
@@ -194,7 +196,7 @@ export default async function DashboardLayout({
 
         .btn-logout:hover {
           background: var(--danger-bg);
-          color: #FCA5A5;
+          color: #a43434;
           border-color: rgba(239, 68, 68, 0.3);
         }
 

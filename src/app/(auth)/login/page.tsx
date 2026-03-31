@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div className="auth-header">
           <div className="logo-icon text-center mb-4">✧</div>
           <h1 className="auth-title">Bienvenido de vuelta</h1>
-          <p className="auth-subtitle">Ingresa para continuar creando evaluaciones</p>
+          <p className="auth-subtitle">Qué bueno verte de nuevo. Continuemos preparando tus evaluaciones.</p>
         </div>
 
         {error && (
@@ -82,12 +82,12 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="btn btn-primary w-full mt-4" disabled={loading}>
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+            {loading ? 'Entrando...' : 'Entrar a mi espacio'}
           </button>
         </form>
 
         <div className="auth-footer">
-          ¿No tienes una cuenta? <Link href="/signup">Regístrate gratis</Link>
+          ¿Aún no tienes cuenta? <Link href="/signup">Crearla ahora</Link>
         </div>
       </div>
       
@@ -98,7 +98,7 @@ export default function LoginPage() {
           align-items: center;
           justify-content: center;
           padding: 2rem;
-          background: radial-gradient(circle at center, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+          background: radial-gradient(circle at center, #ffe8cf 0%, var(--bg-primary) 70%);
         }
         
         .back-link {
@@ -147,7 +147,7 @@ export default function LoginPage() {
         
         .auth-error {
           background: var(--danger-bg);
-          color: #FCA5A5;
+          color: #9f3434;
           padding: 1rem;
           border-radius: var(--radius-sm);
           border: 1px solid rgba(239, 68, 68, 0.2);

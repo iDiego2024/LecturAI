@@ -147,7 +147,7 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
       </div>
 
       {errorMsg && (
-         <div className="error-box p-4 bg-red-900/40 border border-red-500 rounded-md text-red-200 mb-6 text-sm">
+         <div className="error-box p-4 rounded-md mb-6 text-sm">
            <strong>Error:</strong> {errorMsg}
            <p className="mt-1 text-xs opacity-70">Es posible que hayamos alcanzado los límites de la API de Gemini. Pausa un momento y reanuda.</p>
          </div>
@@ -159,7 +159,7 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
             ▶ Reanudar Análisis
           </button>
         ) : (
-          <button onClick={handlePause} className="btn bg-gray-700 hover:bg-gray-600">
+          <button onClick={handlePause} className="btn btn-secondary">
             ⏸ Pausar
           </button>
         )}
@@ -185,6 +185,11 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
         }
         .text-muted { color: var(--text-muted); }
         .text-secondary { color: var(--text-secondary); }
+        .error-box {
+          background: var(--danger-bg);
+          color: #8f3030;
+          border: 1px solid rgba(193, 63, 63, 0.28);
+        }
       `}</style>
     </div>
   );

@@ -23,18 +23,18 @@ export default async function TestsListPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Mis Evaluaciones</h1>
-          <p className="page-subtitle">Historial de pruebas generadas por Inteligencia Artificial</p>
+          <p className="page-subtitle">Aquí encontrarás todas tus pruebas listas para usar en clase.</p>
         </div>
         <Link href="/books" className="btn btn-primary">
-          Ir a Biblioteca (Crear Nueva)
+          Crear nueva evaluacion
         </Link>
       </div>
 
       {!tests || tests.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon text-center mb-4">📝</div>
-          <h3 className="text-xl text-white font-bold mb-2 text-center">No has generado ninguna prueba aún</h3>
-          <p className="text-secondary text-center mb-6">Ve a tu biblioteca, selecciona un libro ya procesado y genera tu primera evaluación.</p>
+          <h3 className="text-xl text-white font-bold mb-2 text-center">Aún no has generado evaluaciones</h3>
+          <p className="text-secondary text-center mb-6">Cuando quieras, vamos a biblioteca y creamos la primera juntos.</p>
           <div className="text-center">
             <Link href="/books" className="btn btn-primary">
               Ir a la Biblioteca
@@ -45,7 +45,7 @@ export default async function TestsListPage() {
         <div className="tests-grid">
           {tests.map((test: any) => (
             <Link href={`/books/${test.books.id}/test/${test.id}`} key={test.id} className="test-card glass-panel">
-              <div className="test-icon">📝</div>
+              <div className="test-icon">🧩</div>
               <div className="test-info">
                 <h3 className="test-title">{test.title}</h3>
                 <p className="test-book">Libro: {test.books.title}</p>
@@ -63,7 +63,7 @@ export default async function TestsListPage() {
       <style>{`
         .empty-state {
           padding: 4rem 2rem;
-          background: rgba(28, 28, 31, 0.4);
+          background: linear-gradient(180deg, rgba(255, 253, 248, 0.92) 0%, rgba(255, 244, 230, 0.92) 100%);
           border: 1px dashed var(--border-light);
           border-radius: var(--radius-lg);
           max-width: 600px;
@@ -78,31 +78,33 @@ export default async function TestsListPage() {
         .text-center { text-align: center; }
         .text-xl { font-size: 1.25rem; }
         .font-bold { font-weight: 700; }
-        .text-white { color: white; }
+        .text-white { color: var(--text-primary); }
         .text-secondary { color: var(--text-secondary); }
 
         .tests-grid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
 
         .test-card {
           display: flex;
           padding: 1.5rem;
           gap: 1.25rem;
-          transition: transform 0.2s, border-color 0.2s;
+          transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
 
         .test-card:hover {
           transform: translateY(-3px);
           border-color: var(--accent-primary);
+          background: rgba(255, 251, 244, 0.92);
+          box-shadow: 0 16px 28px rgba(160, 101, 58, 0.12);
         }
 
         .test-icon {
           width: 48px;
           height: 48px;
-          background: var(--bg-tertiary);
+          background: var(--accent-soft-gradient);
           border-radius: var(--radius-md);
           display: flex;
           align-items: center;
@@ -115,39 +117,46 @@ export default async function TestsListPage() {
         .test-info {
           flex: 1;
           overflow: hidden;
+          min-width: 0;
         }
 
         .test-title {
-          font-size: 1.1rem;
-          color: white;
+          font-size: 1.02rem;
+          color: var(--text-primary);
           margin-bottom: 0.25rem;
           font-weight: 600;
-          white-space: nowrap;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          word-break: break-word;
         }
 
         .test-book {
           color: var(--text-secondary);
-          font-size: 0.9rem;
-          white-space: nowrap;
+          font-size: 0.86rem;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          word-break: break-word;
         }
 
         .test-meta {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.6rem;
+          flex-wrap: wrap;
         }
 
         .badge {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 250, 242, 0.85);
           border: 1px solid var(--border-light);
-          padding: 0.2rem 0.6rem;
-          border-radius: 4px;
+          padding: 0.25rem 0.6rem;
+          border-radius: 999px;
           font-size: 0.75rem;
-          color: var(--text-muted);
+          color: var(--text-secondary);
+          font-weight: 700;
         }
 
         .test-date {

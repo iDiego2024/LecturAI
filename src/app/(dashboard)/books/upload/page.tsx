@@ -120,7 +120,7 @@ export default function UploadBookPage() {
       <div className="page-header">
         <Link href="/books" className="back-link mb-4">← Volver a Biblioteca</Link>
         <h1 className="page-title">Nuevo Libro</h1>
-        <p className="page-subtitle">Sube el PDF o EPUB de la lectura complementaria para ser analizado por la IA.</p>
+        <p className="page-subtitle">Sube tu lectura (PDF o EPUB) y te ayudamos a convertirla en evaluación.</p>
       </div>
 
       <div className="upload-container glass-panel">
@@ -182,7 +182,7 @@ export default function UploadBookPage() {
                 className="btn btn-primary" 
                 disabled={!file || !title}
               >
-                Subir y Analizar Libro
+                Subir y empezar análisis
               </button>
             </div>
           </form>
@@ -195,7 +195,7 @@ export default function UploadBookPage() {
             <h2 className="text-xl font-bold mb-2">
               {status === 'uploading' ? 'Subiendo archivo...' : 
                status === 'done' ? '¡Análisis Completado!' : 
-               'LecturAI está procesando el libro'}
+               'Estamos leyendo el libro contigo'}
             </h2>
             
             <p className="text-muted mb-6">
@@ -219,8 +219,8 @@ export default function UploadBookPage() {
             
             {status === 'processing' && (
               <p className="mt-8 text-sm text-muted">
-                Este proceso puede tomar 1-3 minutos dependiendo de la longitud del libro. 
-                <br/>La IA está leyendo y comprendiendo toda la obra.
+                Este proceso puede tardar 1-3 minutos según el largo del libro. 
+                <br/>Puedes tomarte un café mientras dejamos todo listo.
               </p>
             )}
           </div>
@@ -240,7 +240,7 @@ export default function UploadBookPage() {
           display: inline-block;
         }
 
-        .back-link:hover { color: white; }
+        .back-link:hover { color: var(--text-primary); }
         
         .mb-2 { margin-bottom: 0.5rem; }
         .mb-4 { margin-bottom: 1rem; }
@@ -249,7 +249,7 @@ export default function UploadBookPage() {
         .mt-4 { margin-top: 1rem; }
         .mt-8 { margin-top: 2rem; }
         .text-center { text-align: center; }
-        .text-xl { font-size: 1.25rem; color: white; }
+        .text-xl { font-size: 1.25rem; color: var(--text-primary); }
         .font-bold { font-weight: 700; }
         .text-secondary { color: var(--text-secondary); }
         .text-muted { color: var(--text-muted); }
@@ -257,7 +257,7 @@ export default function UploadBookPage() {
 
         .error-alert {
           background: var(--danger-bg);
-          color: #FCA5A5;
+          color: #9f3434;
           padding: 1rem;
           border-radius: var(--radius-sm);
           margin-bottom: 1.5rem;
@@ -279,7 +279,7 @@ export default function UploadBookPage() {
           text-align: center;
           cursor: pointer;
           transition: all 0.2s;
-          background: rgba(0, 0, 0, 0.2);
+          background: rgba(255, 255, 255, 0.45);
         }
 
         .dropzone:hover {
@@ -299,7 +299,7 @@ export default function UploadBookPage() {
         }
 
         .dropzone-text {
-          color: white;
+          color: var(--text-primary);
           font-weight: 500;
           font-size: 1.1rem;
         }

@@ -17,10 +17,10 @@ export default async function BooksPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Tu Biblioteca</h1>
-          <p className="page-subtitle">Sube libros para analizarlos y generar pruebas</p>
+          <p className="page-subtitle">Tu rincón lector: sube libros y crea evaluaciones con apoyo IA.</p>
         </div>
         <Link href="/books/upload" className="btn btn-primary">
-          <span style={{ fontSize: '1.2rem' }}>+</span> Subir Libro
+          <span style={{ fontSize: '1.2rem' }}>📘</span> Subir libro
         </Link>
       </div>
 
@@ -28,9 +28,9 @@ export default async function BooksPage() {
         <div className="empty-state">
           <div className="empty-icon">📚</div>
           <h3>Tu biblioteca está vacía</h3>
-          <p>Sube tu primer libro en formato PDF para comenzar a generar evaluaciones con Inteligencia Artificial.</p>
+          <p>Sube tu primer PDF o EPUB y en minutos tendrás material listo para evaluar.</p>
           <Link href="/books/upload" className="btn btn-primary" style={{ marginTop: '1.5rem' }}>
-            Subir mi primer libro
+            Empezar con mi primer libro
           </Link>
         </div>
       ) : (
@@ -102,34 +102,41 @@ export default async function BooksPage() {
         .book-card {
           position: relative;
           display: flex;
+          overflow: hidden;
           transition: all 0.2s;
         }
 
         .book-card:hover {
           transform: translateY(-3px);
           border-color: var(--border-focus);
-          background: rgba(39, 39, 42, 0.8);
+          background: rgba(255, 251, 245, 0.92);
         }
 
         .book-card-link {
           display: flex;
           flex: 1;
           padding: 1rem;
+          padding-right: 3.2rem;
           gap: 1rem;
           text-decoration: none;
           color: inherit;
+          min-width: 0;
+          align-items: flex-start;
         }
 
         .book-actions {
           position: absolute;
-          top: 0.5rem;
-          right: 0.5rem;
+          top: 0.7rem;
+          right: 0.7rem;
           opacity: 0;
-          transition: opacity 0.2s;
+          transform: translateY(-4px) scale(0.96);
+          transition: opacity 0.2s, transform 0.2s;
+          z-index: 2;
         }
 
         .book-card:hover .book-actions {
           opacity: 1;
+          transform: translateY(0) scale(1);
         }
 
         .delete-btn {
@@ -167,7 +174,7 @@ export default async function BooksPage() {
           font-family: var(--font-serif);
           font-size: 2.5rem;
           font-weight: 700;
-          color: var(--text-primary);
+          color: #fff9f2;
           box-shadow: var(--shadow-sm);
           flex-shrink: 0;
         }
@@ -177,47 +184,84 @@ export default async function BooksPage() {
           flex-direction: column;
           overflow: hidden;
           flex: 1;
+          min-width: 0;
         }
 
         .book-title {
-          font-size: 1.1rem;
+          font-size: 1.03rem;
           color: var(--text-primary);
-          margin-bottom: 0.25rem;
-          white-space: nowrap;
+          margin-bottom: 0.35rem;
+          line-height: 1.35;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
           overflow: hidden;
-          text-overflow: ellipsis;
+          word-break: break-word;
         }
 
         .book-author {
           font-size: 0.85rem;
           color: var(--text-secondary);
           margin-bottom: auto;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          max-width: 100%;
         }
 
         .book-meta {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          gap: 0.5rem;
+          flex-wrap: wrap;
           margin-top: 1rem;
         }
 
         .book-date {
           font-size: 0.75rem;
           color: var(--text-muted);
+          white-space: nowrap;
         }
 
         .status-badge {
-          font-size: 0.7rem;
-          padding: 0.25rem 0.5rem;
+          font-size: 0.72rem;
+          padding: 0.28rem 0.6rem;
           border-radius: 100px;
-          font-weight: 600;
-          text-transform: uppercase;
+          font-weight: 700;
+          max-width: 100%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .status-ready { background: var(--success-bg); color: var(--success); }
         .status-failed { background: var(--danger-bg); color: var(--danger); }
         .status-pending, .status-extracting, .status-chunking, .status-embedding, .status-analyzing {
           background: var(--warning-bg); color: var(--warning);
+        }
+
+        @media (max-width: 640px) {
+          .books-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .book-card-link {
+            padding-right: 1rem;
+          }
+
+          .book-actions {
+            opacity: 1;
+            transform: none;
+            position: static;
+            align-self: flex-start;
+            margin: 0.8rem 0.8rem 0 0;
+          }
+
+          .book-card {
+            justify-content: space-between;
+          }
         }
       `}</style>
     </div>
