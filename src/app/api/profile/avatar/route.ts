@@ -39,11 +39,11 @@ export async function POST(request: Request) {
 
     const fileExt = file.name.split('.').pop() || 'png';
     const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const avatarBytes = new Uint8Array(await file.arrayBuffer());
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(filePath, buffer, {
+      .upload(filePath, avatarBytes, {
         contentType: file.type,
         upsert: true,
       });
