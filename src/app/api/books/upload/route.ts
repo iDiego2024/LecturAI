@@ -111,17 +111,30 @@ export async function POST(request: Request) {
     let text = '';
     let pages = 0;
     let cover: { data: Buffer; mime: string } | null = null;
+    const shouldGenerateCover = !process.env.VERCEL;
     
     if (file.name.toLowerCase().endsWith('.epub')) {
       const result = await extractTextFromEpub(buffer);
       text = result.text;
       pages = result.pages;
-      cover = await extractCoverFromEpub(buffer);
+      if (shouldGenerateCover) {
+        try {
+          cover = await extractCoverFromEpub(buffer);
+        } catch (coverError) {
+          console.warn('Skipping EPUB cover generation during upload:', coverError);
+        }
+      }
     } else {
       const result = await extractTextFromPdf(buffer);
       text = result.text;
       pages = result.pages;
-      cover = await renderPdfCover(buffer);
+      if (shouldGenerateCover) {
+        try {
+          cover = await renderPdfCover(buffer);
+        } catch (coverError) {
+          console.warn('Skipping PDF cover generation during upload:', coverError);
+        }
+      }
     }
 
     if (cover) {
