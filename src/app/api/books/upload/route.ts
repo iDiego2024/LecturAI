@@ -5,7 +5,7 @@ import { extractTextFromPdf } from '@/lib/pdf/extract';
 import { extractCoverFromEpub, extractTextFromEpub } from '@/lib/pdf/extractEpub';
 import { normalizeText } from '@/lib/pdf/normalize';
 import { chunkText } from '@/lib/pdf/chunk';
-import { DEMO_MAX_BOOKS, isDemoEmail } from '@/lib/demo';
+import { isDemoEmail } from '@/lib/demo';
 import { renderPdfCover } from '@/lib/pdf/cover';
 
 export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro on normal routes
@@ -25,17 +25,10 @@ export async function POST(request: Request) {
     const userId = user.id;
 
     if (isDemoEmail(user.email)) {
-      const { count } = await authClient
-        .from('books')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId);
-
-      if ((count || 0) >= DEMO_MAX_BOOKS) {
-        return NextResponse.json(
-          { error: 'La cuenta demo permite subir solo 1 libro.' },
-          { status: 403 }
-        );
-      }
+      return NextResponse.json(
+        { error: 'La cuenta demo usa un libro de ejemplo ya preparado. No permite subir archivos propios.' },
+        { status: 403 }
+      );
     }
 
     // Ensure the profile exists (older accounts or externally-created users

@@ -3,11 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { DEMO_BOOK_AUTHOR, DEMO_BOOK_FILE, DEMO_BOOK_TITLE, isDemoEmail } from '@/lib/demo';
 
 export default function UploadBookPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
+  const [isDemo, setIsDemo] = useState(false);
   
   // Upload and processing state
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'done' | 'error'>('idle');
@@ -18,6 +21,16 @@ export default function UploadBookPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsDemo(isDemoEmail(user?.email));
+    };
+
+    void loadUser();
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -75,6 +88,30 @@ export default function UploadBookPage() {
     }
   };
 
+  const handleUseDemoBook = async () => {
+    setStatus('uploading');
+    setErrorMsg('');
+    setProcessingStatus('Preparando el libro de ejemplo...');
+    setProgress(20);
+
+    try {
+      const response = await fetch('/api/demo/book', { method: 'POST' });
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'No fue posible preparar el libro demo');
+
+      setBookId(data.book.id);
+      setStatus('processing');
+      setProcessingStatus(data.reused ? 'Abriendo libro demo...' : 'Dejando listo el libro de ejemplo...');
+      setProgress(data.reused ? 100 : 30);
+      router.push(`/books/${data.book.id}`);
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      setErrorMsg(err instanceof Error ? err.message : 'Error desconocido');
+    }
+  };
+
   // Poll for status updates
   useEffect(() => {
     if (status !== 'processing' || !bookId) return;
@@ -120,72 +157,97 @@ export default function UploadBookPage() {
       <div className="page-header">
         <Link href="/books" className="back-link mb-4">← Volver a Biblioteca</Link>
         <h1 className="page-title">Nuevo Libro</h1>
-        <p className="page-subtitle">Sube tu lectura (PDF o EPUB) y te ayudamos a convertirla en evaluación.</p>
+        <p className="page-subtitle">
+          {isDemo ? 'En el demo usamos un solo libro de ejemplo para que explores el flujo completo sin subir archivos propios.' : 'Sube tu lectura (PDF o EPUB) y te ayudamos a convertirla en evaluación.'}
+        </p>
       </div>
 
       <div className="upload-container glass-panel">
         
         {status === 'idle' || status === 'error' ? (
-          <form onSubmit={handleUpload}>
+          <>
             {errorMsg && <div className="error-alert">{errorMsg}</div>}
-            
-            <div className="form-group">
-              <label>Archivo PDF o EPUB</label>
-              <div 
-                className={`dropzone ${file ? 'has-file' : ''}`}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="dropzone-icon">📄</div>
-                <div className="dropzone-text">
-                  {file ? file.name : 'Haz clic para seleccionar el PDF o EPUB del libro'}
+
+            {isDemo ? (
+              <div className="demo-book-card">
+                <div className="demo-badge">Modo demo guiado</div>
+                <h3 className="demo-title">{DEMO_BOOK_TITLE}</h3>
+                <p className="demo-author">{DEMO_BOOK_AUTHOR}</p>
+                <p className="demo-description">
+                  Usaremos este libro para mostrar el analisis, el resumen y la generacion de 1 evaluacion en un entorno controlado.
+                </p>
+                <div className="demo-file">
+                  <span>Archivo base del demo</span>
+                  <strong>{DEMO_BOOK_FILE}</strong>
                 </div>
-                {file && <div className="dropzone-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+                <div className="form-actions mt-8">
+                  <Link href="/books" className="btn btn-secondary">Volver</Link>
+                  <button type="button" className="btn btn-primary" onClick={handleUseDemoBook}>
+                    Usar libro de ejemplo
+                  </button>
+                </div>
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileSelect} 
-                accept=".pdf,.epub,application/epub+zip" 
-                style={{ display: 'none' }} 
-              />
-            </div>
+            ) : (
+              <form onSubmit={handleUpload}>
+                <div className="form-group">
+                  <label>Archivo PDF o EPUB</label>
+                  <div 
+                    className={`dropzone ${file ? 'has-file' : ''}`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className="dropzone-icon">📄</div>
+                    <div className="dropzone-text">
+                      {file ? file.name : 'Haz clic para seleccionar el PDF o EPUB del libro'}
+                    </div>
+                    {file && <div className="dropzone-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileSelect} 
+                    accept=".pdf,.epub,application/epub+zip" 
+                    style={{ display: 'none' }} 
+                  />
+                </div>
 
-            <div className="form-group mt-4">
-              <label htmlFor="title">Título del Libro (Requerido)</label>
-              <input
-                id="title"
-                type="text"
-                className="input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                placeholder="Ej: Crónica de una muerte anunciada"
-              />
-            </div>
+                <div className="form-group mt-4">
+                  <label htmlFor="title">Título del Libro (Requerido)</label>
+                  <input
+                    id="title"
+                    type="text"
+                    className="input"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    placeholder="Ej: Crónica de una muerte anunciada"
+                  />
+                </div>
 
-            <div className="form-group mt-4">
-              <label htmlFor="author">Autor (Opcional)</label>
-              <input
-                id="author"
-                type="text"
-                className="input"
-                value={author}
-                onChange={(e) => setAuthor(e.target.value)}
-                placeholder="Ej: Gabriel García Márquez"
-              />
-            </div>
+                <div className="form-group mt-4">
+                  <label htmlFor="author">Autor (Opcional)</label>
+                  <input
+                    id="author"
+                    type="text"
+                    className="input"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    placeholder="Ej: Gabriel García Márquez"
+                  />
+                </div>
 
-            <div className="form-actions mt-8">
-              <Link href="/books" className="btn btn-secondary">Cancelar</Link>
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
-                disabled={!file || !title}
-              >
-                Subir y empezar análisis
-              </button>
-            </div>
-          </form>
+                <div className="form-actions mt-8">
+                  <Link href="/books" className="btn btn-secondary">Cancelar</Link>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    disabled={!file || !title}
+                  >
+                    Subir y empezar análisis
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
         ) : (
           <div className="processing-state text-center">
             <div className="processing-icon mb-4">
@@ -262,6 +324,58 @@ export default function UploadBookPage() {
           border-radius: var(--radius-sm);
           margin-bottom: 1.5rem;
           border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .demo-book-card {
+          display: flex;
+          flex-direction: column;
+          gap: 0.85rem;
+          padding: 0.35rem 0;
+        }
+
+        .demo-badge {
+          display: inline-flex;
+          width: fit-content;
+          padding: 0.45rem 0.8rem;
+          border-radius: 999px;
+          background: rgba(255, 244, 232, 0.9);
+          color: #8c4f2a;
+          border: 1px solid rgba(225, 109, 61, 0.2);
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+
+        .demo-title {
+          margin: 0;
+          font-size: 1.5rem;
+          color: var(--text-primary);
+        }
+
+        .demo-author,
+        .demo-description {
+          margin: 0;
+          color: var(--text-secondary);
+          line-height: 1.7;
+        }
+
+        .demo-file {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-light);
+          background: rgba(255, 249, 241, 0.78);
+        }
+
+        .demo-file span {
+          font-size: 0.85rem;
+          color: var(--text-muted);
+        }
+
+        .demo-file strong {
+          color: var(--text-primary);
+          overflow-wrap: anywhere;
         }
 
         .form-group label {

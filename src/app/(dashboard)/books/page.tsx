@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import DeleteBookButton from './DeleteBookButton';
-import { isDemoEmail } from '@/lib/demo';
+import { DEMO_BOOK_TITLE, isDemoEmail } from '@/lib/demo';
 
 export default async function BooksPage() {
   const supabase = createClient();
@@ -22,13 +22,13 @@ export default async function BooksPage() {
           <p className="page-subtitle">Tu rincón lector: sube libros y crea evaluaciones con apoyo IA.</p>
         </div>
         <Link href="/books/upload" className="btn btn-primary">
-          <span style={{ fontSize: '1.2rem' }}>📘</span> Subir libro
+          <span style={{ fontSize: '1.2rem' }}>📘</span> {isDemo ? 'Usar libro demo' : 'Subir libro'}
         </Link>
       </div>
 
       {isDemo && (
         <div className="demo-banner">
-          Modo demo: puedes subir 1 libro y generar 1 evaluacion. Las descargas estan deshabilitadas.
+          Modo demo: usaras solo &quot;{DEMO_BOOK_TITLE}&quot;, podras generar 1 evaluacion y las descargas estan deshabilitadas.
         </div>
       )}
 
@@ -36,9 +36,9 @@ export default async function BooksPage() {
         <div className="empty-state">
           <div className="empty-icon">📚</div>
           <h3>Tu biblioteca está vacía</h3>
-          <p>Sube tu primer PDF o EPUB y en minutos tendrás material listo para evaluar.</p>
+          <p>{isDemo ? `Activa ${DEMO_BOOK_TITLE} para explorar el analisis y crear una evaluacion.` : 'Sube tu primer PDF o EPUB y en minutos tendrás material listo para evaluar.'}</p>
           <Link href="/books/upload" className="btn btn-primary" style={{ marginTop: '1.5rem' }}>
-            Empezar con mi primer libro
+            {isDemo ? 'Usar libro demo' : 'Empezar con mi primer libro'}
           </Link>
         </div>
       ) : (
