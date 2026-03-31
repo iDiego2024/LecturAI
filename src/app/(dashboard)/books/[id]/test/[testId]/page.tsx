@@ -8,6 +8,7 @@ import { isDemoEmail } from '@/lib/demo';
 export default async function ReviewTestPage({ params }: { params: { id: string, testId: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lectur-ai.vercel.app';
   const isDemo = isDemoEmail(user?.email);
 
   // Fetch test details with all questions
@@ -61,13 +62,14 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           <ShareByEmailButton
             subject={`Evaluacion: ${t.title}`}
             body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
+            shareUrl={`${appUrl}/books/${params.id}/test/${params.testId}`}
           />
           {!isDemo && (
             <>
-              <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary" target="_blank">
+              <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary action-btn" target="_blank" rel="noopener noreferrer">
                 <span className="mr-2">📄</span> Exportar Alumno (Word)
               </a>
-              <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow" target="_blank">
+              <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow action-btn" target="_blank" rel="noopener noreferrer">
                 <span className="mr-2">✅</span> Exportar Docente (Word)
               </a>
             </>
@@ -207,25 +209,37 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         .page-header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-end;
+          align-items: flex-start;
           gap: 1.5rem;
         }
 
         @media (max-width: 768px) {
           .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
-          .export-actions { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; }
+          .export-actions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
           .export-actions .btn { width: 100%; justify-content: center; }
         }
 
         .export-actions {
-          display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
-          justify-content: flex-end;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(210px, max-content));
+          gap: 0.75rem;
+          justify-content: end;
+          align-items: stretch;
         }
 
         .export-actions .btn {
           white-space: nowrap;
+          min-height: 48px;
+          padding: 0.78rem 1.1rem;
+          font-size: 0.95rem;
+          justify-content: center;
+          text-align: center;
+          border-radius: 16px;
+        }
+
+        .action-btn {
+          display: inline-flex;
+          align-items: center;
         }
         
         .btn-glow {

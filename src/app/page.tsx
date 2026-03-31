@@ -13,11 +13,11 @@ export default function Home() {
           <div className="badge">🍎 Hecho para profes que enseñan con corazón</div>
           
           <h1 className="hero-title">
-            Evaluaciones de lectura con una mirada <span className="text-gradient font-serif">cercana, cálida y pedagógica</span>
+            Convierte cada libro en una evaluación <span className="text-gradient font-serif">clara, profunda y lista para enseñar</span>
           </h1>
           
           <p className="hero-description">
-            LecturAI lee el libro completo contigo, detecta personajes y conflictos clave, y transforma todo en evaluaciones claras para tus estudiantes. Menos carga administrativa, más tiempo para enseñar.
+            LecturAI analiza la obra completa, reconoce personajes, conflictos y temas clave, y los transforma en evaluaciones con sentido pedagógico. Más criterio para evaluar, menos tiempo perdido armando todo desde cero.
           </p>
           
           <div className="hero-actions">
@@ -34,7 +34,7 @@ export default function Home() {
 
           <div className="hero-note glass-panel">
             <span className="hero-note-icon">✦</span>
-            <p>Diseñado para contextos escolares reales: lenguaje claro, decisiones visibles y una experiencia más amable para docentes.</p>
+            <p>Hecho para el aula real: lenguaje cuidado, decisiones visibles y una experiencia que acompaña al docente de principio a fin.</p>
           </div>
           
           <div className="hero-stats">
@@ -166,12 +166,12 @@ export default function Home() {
         }
         
         .hero-title {
-          font-size: clamp(2.2rem, 4.6vw, 4.1rem);
-          line-height: 1.05;
-          max-width: 980px;
-          margin-bottom: 1.35rem;
+          font-size: clamp(2rem, 4vw, 3.55rem);
+          line-height: 1.14;
+          max-width: 940px;
+          margin-bottom: 1.5rem;
           color: var(--text-primary);
-          letter-spacing: -0.045em;
+          letter-spacing: -0.04em;
         }
         
         .text-gradient {
@@ -179,14 +179,15 @@ export default function Home() {
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           display: inline-block;
+          padding-bottom: 0.08em;
         }
         
         .hero-description {
-          font-size: 1.1rem;
+          font-size: 1.12rem;
           color: var(--text-secondary);
-          max-width: 760px;
-          margin-bottom: 2rem;
-          line-height: 1.78;
+          max-width: 800px;
+          margin-bottom: 2.2rem;
+          line-height: 1.82;
         }
         
         .hero-actions {
@@ -204,7 +205,7 @@ export default function Home() {
           display: flex;
           align-items: center;
           gap: 0.9rem;
-          max-width: 700px;
+          max-width: 760px;
           padding: 1rem 1.2rem;
           margin-bottom: 3.2rem;
           background: linear-gradient(180deg, rgba(255, 253, 248, 0.94) 0%, rgba(255, 245, 231, 0.96) 100%);
@@ -370,6 +371,10 @@ export default function Home() {
           .nav-links { display: none; }
           .hero {
             padding-top: 6.5rem;
+          }
+          .hero-title {
+            font-size: 2.4rem;
+            line-height: 1.16;
           }
           .hero-actions { flex-direction: column; width: 100%; }
           .hero-actions .btn {

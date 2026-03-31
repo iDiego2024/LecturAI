@@ -7,6 +7,7 @@ import ShareByEmailButton from '@/components/ShareByEmailButton';
 export default async function BookSummaryPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lectur-ai.vercel.app';
 
   if (!user) {
     redirect('/login');
@@ -38,6 +39,7 @@ export default async function BookSummaryPage({ params }: { params: { id: string
           <ShareByEmailButton
             subject={`Resumen del libro: ${book.title}`}
             body={`Te comparto el resumen del libro "${book.title}".`}
+            shareUrl={`${appUrl}/books/${params.id}/summary`}
           />
         </div>
       </div>
