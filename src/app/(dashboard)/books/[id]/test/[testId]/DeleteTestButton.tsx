@@ -37,9 +37,9 @@ export default function DeleteTestButton({ testId, testTitle, bookId }: { testId
       disabled={isDeleting}
       className={`btn ${isDeleting ? 'deleting' : ''}`}
       style={{
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        color: '#ef4444',
-        border: '1px solid rgba(239, 68, 68, 0.2)'
+        backgroundColor: 'rgba(193, 63, 63, 0.12)',
+        color: 'var(--danger)',
+        border: '1px solid rgba(193, 63, 63, 0.28)'
       }}
       title="Eliminar prueba"
     >
