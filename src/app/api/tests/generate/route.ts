@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateQuestion } from '@/lib/gemini/questions';
+import { DEMO_MAX_TESTS, isDemoEmail } from '@/lib/demo';
 
 export async function POST(request: Request) {
   try {
@@ -31,6 +32,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Book not found or unauthorized' }, { status: 404 });
     }
 
+    if (isDemoEmail(user.email)) {
+      const { count } = await supabase
+        .from('tests')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if ((count || 0) >= DEMO_MAX_TESTS) {
+        return NextResponse.json(
+          { error: 'La cuenta demo permite generar solo 1 evaluacion.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Generate questions in sequence to maintain context and avoid duplicates
     const questions = [];
     let existingContext = '';
@@ -44,9 +59,12 @@ export async function POST(request: Request) {
         targetGrade: config.targetGrade,
         existingQuestionsContext: existingContext
       });
+      if (!q) {
+        throw new Error('No se pudo generar una pregunta valida.');
+      }
 
       questions.push(q);
-      existingContext += `- [${q?.cognitive_level}] ${q?.question_text}\n`;
+      existingContext += `- [${q.cognitive_level}] ${q.question_text}\n`;
     }
 
     return NextResponse.json({ success: true, count: questions.length, questions });

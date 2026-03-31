@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { DEMO_EMAIL, DEMO_PASSWORD } from '@/lib/demo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1') {
+      setEmail(DEMO_EMAIL);
+      setPassword(DEMO_PASSWORD);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +38,29 @@ export default function LoginPage() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError('');
+    setEmail(DEMO_EMAIL);
+    setPassword(DEMO_PASSWORD);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+      });
+
+      if (error) throw error;
+
+      router.push('/books');
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible entrar al demo');
     } finally {
       setLoading(false);
     }
@@ -82,12 +113,15 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="btn btn-primary w-full mt-4" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar a mi espacio'}
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+          <button type="button" className="btn btn-secondary w-full mt-4" disabled={loading} onClick={handleDemoLogin}>
+            {loading ? 'Preparando demo...' : 'Ver demo'}
           </button>
         </form>
 
         <div className="auth-footer">
-          ¿Aún no tienes cuenta? <Link href="/signup">Crearla ahora</Link>
+          ¿Aun no tienes cuenta? <Link href="/signup">Crear ahora</Link>
         </div>
       </div>
       

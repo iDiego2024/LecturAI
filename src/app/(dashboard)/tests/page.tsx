@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { isDemoEmail } from '@/lib/demo';
 
 export default async function TestsListPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const isDemo = isDemoEmail(user?.email);
 
   const { data: tests, error } = await supabase
     .from('tests')
@@ -29,6 +31,12 @@ export default async function TestsListPage() {
           Crear nueva evaluacion
         </Link>
       </div>
+
+      {isDemo && (
+        <div className="demo-banner">
+          Estas en modo demo: 1 evaluacion maxima y sin opcion de descarga.
+        </div>
+      )}
 
       {!tests || tests.length === 0 ? (
         <div className="empty-state">
@@ -85,6 +93,15 @@ export default async function TestsListPage() {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
           gap: 1.25rem;
+        }
+
+        .demo-banner {
+          margin-bottom: 1.25rem;
+          padding: 0.95rem 1rem;
+          border-radius: var(--radius-md);
+          background: var(--warning-bg);
+          color: var(--warning);
+          font-weight: 700;
         }
 
         .test-card {

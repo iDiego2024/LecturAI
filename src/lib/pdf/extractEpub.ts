@@ -66,3 +66,41 @@ export async function extractTextFromEpub(buffer: Buffer): Promise<{ text: strin
     });
   }
 }
+
+export async function extractCoverFromEpub(buffer: Buffer): Promise<{ data: Buffer; mime: string } | null> {
+  const tempFilePath = join(tmpdir(), `temp-epub-${Date.now()}-${Math.random().toString(36).substring(7)}.epub`);
+  await writeFile(tempFilePath, buffer);
+
+  try {
+    const epub = await EPub.createAsync(tempFilePath);
+    const coverId = (epub as any).metadata?.cover;
+
+    if (!coverId) return null;
+
+    const coverData = await new Promise<Buffer | null>((resolve) => {
+      const getImage = (epub as any).getImageAsync || (epub as any).getImage;
+      if (!getImage) return resolve(null);
+      if ((epub as any).getImageAsync) {
+        (epub as any).getImageAsync(coverId)
+          .then((data: Buffer) => resolve(data))
+          .catch(() => resolve(null));
+      } else {
+        (epub as any).getImage(coverId, (err: Error, data: Buffer, mime: string) => {
+          if (err) return resolve(null);
+          (epub as any).__coverMime = mime;
+          resolve(data);
+        });
+      }
+    });
+
+    if (!coverData) return null;
+
+    const mime =
+      (epub as any).__coverMime ||
+      (coverId.endsWith('.png') ? 'image/png' : 'image/jpeg');
+
+    return { data: coverData, mime };
+  } finally {
+    await unlink(tempFilePath).catch(() => null);
+  }
+}

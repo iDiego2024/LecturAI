@@ -2,15 +2,7 @@
 const nextConfig = {
   // Solución para librerías con dependencias nativas o binarias
   experimental: {
-    serverComponentsExternalPackages: ['pdf-parse', 'epub2'],
-  },
-  
-  // Ignorar errores menores para permitir el despliegue
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
+    serverComponentsExternalPackages: ['pdf-parse', 'epub2', '@napi-rs/canvas', 'pdfjs-dist'],
   },
 
   // En Vercel no necesitamos `standalone`; Vercel realiza su propio tracing.

@@ -14,10 +14,29 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  const metadata = user.user_metadata as {
+    full_name?: string | null;
+    school_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+
+  await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: user.id,
+        email: user.email || 'unknown@lecturai.local',
+        full_name: metadata?.full_name || null,
+        school_name: metadata?.school_name || null,
+        avatar_url: metadata?.avatar_url || null,
+      } as any,
+      { onConflict: 'id' }
+    );
+
   // Get profile context
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('full_name, school_name')
+    .select('full_name, school_name, avatar_url')
     .eq('id', user.id)
     .single();
 
@@ -48,13 +67,22 @@ export default async function DashboardLayout({
         <div className="sidebar-footer">
           <div className="user-profile">
             <div className="avatar">
-              {profile?.full_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.avatar_url} alt="Foto de perfil" className="avatar-image" />
+              ) : (
+                profile?.full_name?.charAt(0) || user.email?.charAt(0) || 'U'
+              )}
             </div>
             <div className="user-info">
               <div className="user-name">{profile?.full_name || 'Profesor(a)'}</div>
               <div className="user-school">{profile?.school_name || 'Mi Colegio'}</div>
             </div>
           </div>
+
+          <Link href="/profile" className="profile-link">
+            Editar perfil y seguridad
+          </Link>
           
           <form action="/auth/signout" method="post">
             <button type="submit" className="btn-logout">
@@ -158,6 +186,13 @@ export default async function DashboardLayout({
           align-items: center;
           justify-content: center;
           font-weight: 700;
+          overflow: hidden;
+        }
+
+        .avatar-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .user-info {
@@ -192,6 +227,14 @@ export default async function DashboardLayout({
           cursor: pointer;
           font-weight: 500;
           transition: all 0.2s;
+        }
+
+        .profile-link {
+          display: inline-flex;
+          margin-bottom: 1rem;
+          color: var(--accent-primary);
+          font-size: 0.9rem;
+          font-weight: 700;
         }
 
         .btn-logout:hover {

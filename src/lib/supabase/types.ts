@@ -12,6 +12,7 @@ export interface Database {
       books: {
         Row: {
           author: string | null
+          cover_url: string | null
           created_at: string
           file_path: string
           file_size_bytes: number | null
@@ -28,6 +29,7 @@ export interface Database {
         }
         Insert: {
           author?: string | null
+          cover_url?: string | null
           created_at?: string
           file_path: string
           file_size_bytes?: number | null
@@ -44,6 +46,7 @@ export interface Database {
         }
         Update: {
           author?: string | null
+          cover_url?: string | null
           created_at?: string
           file_path?: string
           file_size_bytes?: number | null
@@ -70,6 +73,7 @@ export interface Database {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -77,6 +81,7 @@ export interface Database {
           school_name: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -84,6 +89,7 @@ export interface Database {
           school_name?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           full_name?: string | null

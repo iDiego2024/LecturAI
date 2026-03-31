@@ -4,9 +4,10 @@ import { createClient } from '../supabase/server';
 interface ExportConfig {
   testId: string;
   isTeacherVersion: boolean;
+  userId: string;
 }
 
-export async function generateWordDocument({ testId, isTeacherVersion }: ExportConfig) {
+export async function generateWordDocument({ testId, isTeacherVersion, userId }: ExportConfig) {
   const supabase = createClient();
   
   // 1. Fetch test details
@@ -29,23 +30,25 @@ export async function generateWordDocument({ testId, isTeacherVersion }: ExportC
       )
     `)
     .eq('id', testId)
+    .eq('user_id', userId)
     .single();
 
   if (!test) throw new Error('Test not found');
 
   // Sort items by order
-  const items = test.test_items.sort((a: any, b: any) => a.item_order - b.item_order);
+  const typedTest = test as any;
+  const items = (typedTest.test_items || []).sort((a: any, b: any) => a.item_order - b.item_order);
 
   // 2. Build Document Elements
   const children: any[] = [
     new Paragraph({
-      text: test.title,
+      text: typedTest.title,
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
     }),
     new Paragraph({
-      text: `Libro: ${test.books.title} ${test.books.author ? `por ${test.books.author}` : ''}`,
+      text: `Libro: ${typedTest.books.title} ${typedTest.books.author ? `por ${typedTest.books.author}` : ''}`,
       heading: HeadingLevel.HEADING_2,
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 }
@@ -60,12 +63,12 @@ export async function generateWordDocument({ testId, isTeacherVersion }: ExportC
     
     // Header block for student
     new Paragraph({ text: `Nombre del estudiante: __________________________________________________`, spacing: { after: 200 } }),
-    new Paragraph({ text: `Curso: ${test.target_grade || '_________________'}          Fecha: _________________`, spacing: { after: 400 } }),
+    new Paragraph({ text: `Curso: ${typedTest.target_grade || '_________________'}          Fecha: _________________`, spacing: { after: 400 } }),
     
     new Paragraph({
       children: [
         new TextRun({ text: "Instrucciones: ", bold: true }),
-        new TextRun({ text: test.instructions || "Lee atentamente cada pregunta y responde según lo solicitado." })
+        new TextRun({ text: typedTest.instructions || "Lee atentamente cada pregunta y responde según lo solicitado." })
       ],
       spacing: { after: 600 }
     })
@@ -142,7 +145,17 @@ export async function generateWordDocument({ testId, isTeacherVersion }: ExportC
       // Add empty lines for student to write
       if (!isTeacherVersion) {
         for (let i = 0; i < 5; i++) {
-          children.push(new Paragraph({ text: "____________________________________________________________________________________", spacing: { after: 200 }, color: "CCCCCC" }));
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: "____________________________________________________________________________________",
+                  color: "CCCCCC",
+                }),
+              ],
+              spacing: { after: 200 },
+            })
+          );
         }
       } else {
         // Teacher sees the rubric
@@ -154,8 +167,7 @@ export async function generateWordDocument({ testId, isTeacherVersion }: ExportC
             spacing: { before: 200 }
           }),
           new Paragraph({
-            text: q.rubric || q.correct_answer,
-            color: "008800",
+            children: [new TextRun({ text: q.rubric || q.correct_answer, color: "008800" })],
             spacing: { after: 200 }
           })
         );
@@ -183,5 +195,9 @@ export async function generateWordDocument({ testId, isTeacherVersion }: ExportC
     }]
   });
 
-  return await Packer.toBuffer(doc);
+  const buffer = await Packer.toBuffer(doc);
+  return {
+    buffer,
+    title: typedTest.title as string,
+  };
 }

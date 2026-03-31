@@ -25,7 +25,7 @@ export default async function Navbar() {
             ) : (
               <>
                 <Link href="/login" className="btn btn-secondary">
-                  Entrar
+                  Ingresar
                 </Link>
                 <Link href="/signup" className="btn btn-primary">
                   Crear cuenta
