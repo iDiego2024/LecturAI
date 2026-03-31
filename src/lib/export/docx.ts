@@ -7,6 +7,30 @@ interface ExportConfig {
   userId: string;
 }
 
+function stableHash(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function getStableShuffledOptions(correctAnswer: string, distractors: string[] | null, seedSource: string) {
+  const options = [
+    { text: correctAnswer, isCorrect: true },
+    ...((distractors || []).map((text) => ({ text, isCorrect: false }))),
+  ];
+
+  return options
+    .map((option, index) => ({
+      option,
+      sortKey: stableHash(`${seedSource}:${index}:${option.text}`),
+    }))
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map(({ option }) => option)
+    .slice(0, 4);
+}
+
 export async function generateWordDocument({ testId, isTeacherVersion, userId }: ExportConfig) {
   const supabase = createClient();
   
@@ -93,14 +117,17 @@ export async function generateWordDocument({ testId, isTeacherVersion, userId }:
 
     // Question options/body based on type
     if (q.q_type === 'multiple_choice') {
-      const allOptions = [q.correct_answer, ...(q.distractors || [])];
-      // In a real app we'd randomize options, but for the teacher version we need to know which is which.
-      // Easiest is to always randomize but mark the correct one for teachers.
+      const allOptions = getStableShuffledOptions(
+        q.correct_answer,
+        q.distractors || [],
+        `${typedTest.id}:${q.question_text}`
+      );
       const letters = ['a', 'b', 'c', 'd'];
       
       letters.forEach((letter, i) => {
-        const isCorrect = i === 0; // Assume we randomize later; for now just list them
-        const optionText = allOptions[i] || "";
+        const currentOption = allOptions[i];
+        const isCorrect = Boolean(currentOption?.isCorrect);
+        const optionText = currentOption?.text || "";
         
         children.push(
           new Paragraph({

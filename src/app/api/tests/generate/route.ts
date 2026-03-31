@@ -3,6 +3,18 @@ import { createClient } from '@/lib/supabase/server';
 import { generateQuestion } from '@/lib/gemini/questions';
 import { DEMO_MAX_TESTS, isDemoEmail } from '@/lib/demo';
 
+const ALLOWED_COGNITIVE_LEVELS = ['locate', 'interpret', 'reflect'] as const;
+const ALLOWED_QUESTION_TYPES = ['multiple_choice', 'true_false', 'development'] as const;
+const MAX_QUESTIONS_PER_TEST = 30;
+
+function isAllowedStringArray(value: unknown, allowedValues: readonly string[]) {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === 'string' && allowedValues.includes(item))
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = createClient();
@@ -18,6 +30,25 @@ export async function POST(request: Request) {
 
     if (!bookId || !count || !config) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (!Number.isInteger(count) || count < 1 || count > MAX_QUESTIONS_PER_TEST) {
+      return NextResponse.json(
+        { error: `La cantidad de preguntas debe estar entre 1 y ${MAX_QUESTIONS_PER_TEST}.` },
+        { status: 400 }
+      );
+    }
+
+    if (
+      typeof config?.targetGrade !== 'string' ||
+      !config.targetGrade.trim() ||
+      !isAllowedStringArray(config?.distribution?.cognitive, ALLOWED_COGNITIVE_LEVELS) ||
+      !isAllowedStringArray(config?.distribution?.types, ALLOWED_QUESTION_TYPES)
+    ) {
+      return NextResponse.json(
+        { error: 'Configuracion de evaluacion invalida.' },
+        { status: 400 }
+      );
     }
 
     // Verify book ownership

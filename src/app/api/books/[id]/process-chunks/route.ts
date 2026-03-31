@@ -57,42 +57,93 @@ export async function POST(
       await supabase.from('books').update({ processing_status: 'chunking' }).eq('id', bookId);
     }
 
-    // Fetch batch (increased to 50 since we bypass the Gemini limit completely)
+    // Fetch candidate chunks, then claim them one by one to avoid duplicate work
+    // when two requests hit this route at nearly the same time.
     const BATCH_SIZE = 50;
-    const { data: chunks, error: chunksError } = await supabase
+    const { data: candidateChunks, error: chunksError } = await supabase
       .from('book_chunk_jobs')
       .select('*')
       .eq('job_id', job.id)
       .in('status', ['pending', 'retrying'])
       .order('chunk_index', { ascending: true })
-      .limit(BATCH_SIZE);
+      .limit(BATCH_SIZE * 2);
 
     if (chunksError) throw chunksError;
 
-    if (!chunks || chunks.length === 0) {
-      // Are there failed chunks?
-      const { count: failedCount, error: countError } = await supabase
+    const claimedChunks = [];
+    for (const chunk of candidateChunks || []) {
+      if (claimedChunks.length >= BATCH_SIZE) break;
+
+      const { data: claimedChunk, error: claimError } = await supabase
         .from('book_chunk_jobs')
-        .select('*', { count: 'exact', head: true })
-        .eq('job_id', job.id)
-        .eq('status', 'failed');
-        
+        .update({ status: 'processing' })
+        .eq('id', chunk.id)
+        .in('status', ['pending', 'retrying'])
+        .select('*')
+        .maybeSingle();
+
+      if (claimError) throw claimError;
+      if (claimedChunk) {
+        claimedChunks.push(claimedChunk);
+      }
+    }
+
+    if (claimedChunks.length === 0) {
+      const [
+        { count: processingCount, error: processingCountError },
+        { count: failedCount, error: failedCountError },
+      ] = await Promise.all([
+        supabase
+          .from('book_chunk_jobs')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id)
+          .eq('status', 'processing'),
+        supabase
+          .from('book_chunk_jobs')
+          .select('*', { count: 'exact', head: true })
+          .eq('job_id', job.id)
+          .eq('status', 'failed'),
+      ]);
+
+      if (processingCountError) throw processingCountError;
+      if (failedCountError) throw failedCountError;
+
+      if ((processingCount || 0) > 0) {
+        return NextResponse.json({
+          success: true,
+          message: 'Waiting for in-flight chunks to finish',
+          processed: 0,
+          totalProcessed: job.processed_chunks,
+          totalChunks: job.total_chunks,
+          progress: 20 + Math.floor((job.processed_chunks / job.total_chunks) * 60),
+          nextAction: 'process-chunks',
+        });
+      }
+
+      // Are there failed chunks?
       if (failedCount && failedCount > 0) {
         await supabase.from('book_jobs').update({ status: 'failed', error_message: `${failedCount} chunks failed permanently` }).eq('id', job.id);
         await supabase.from('books').update({ processing_status: 'failed', processing_progress: 0, processing_error: 'Some chunks failed permanently' }).eq('id', bookId);
-        return NextResponse.json({ error: 'Job failed due to permanently failed chunks', job });
+        return NextResponse.json(
+          { error: 'Job failed due to permanently failed chunks', job },
+          { status: 500 }
+        );
       }
 
+      const { count: completedChunks, error: completedCountError } = await supabase
+        .from('book_chunk_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('job_id', job.id)
+        .eq('status', 'completed');
+
+      if (completedCountError) throw completedCountError;
+
       // No chunks left! Advance to consolidating
-      await supabase.from('book_jobs').update({ status: 'consolidating' }).eq('id', job.id);
+      await supabase.from('book_jobs').update({ status: 'consolidating', processed_chunks: completedChunks || job.processed_chunks }).eq('id', job.id);
       await supabase.from('books').update({ processing_status: 'analyzing', processing_progress: 80 }).eq('id', bookId);
       
       return NextResponse.json({ success: true, message: 'All chunks processed', nextAction: 'consolidate', job });
     }
-
-    // Mark these as processing
-    const chunkIds = chunks.map(c => c.id);
-    await supabase.from('book_chunk_jobs').update({ status: 'processing' }).in('id', chunkIds);
 
     // Bypass Gemini API embedding generation entirely
     // The previous implementation used generateEmbeddingsBatch which resulted in 429 Rate Limits.
@@ -100,7 +151,8 @@ export async function POST(
     // semantic chunk retrieval using embeddings is no longer strictly necessary.
     
     // Success! Save without vector embeddings
-    const chunkRecords = chunks.map((chunk) => ({
+    const chunkIds = claimedChunks.map(c => c.id);
+    const chunkRecords = claimedChunks.map((chunk) => ({
       book_id: bookId,
       chunk_index: chunk.chunk_index,
       content: chunk.chunk_data.content,
@@ -118,7 +170,15 @@ export async function POST(
     await supabase.from('book_chunk_jobs').update({ status: 'completed' }).in('id', chunkIds);
 
     // Update global progress
-    const newProcessedItems = job.processed_chunks + chunks.length;
+    const { count: completedChunks, error: completedCountError } = await supabase
+      .from('book_chunk_jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('job_id', job.id)
+      .eq('status', 'completed');
+
+    if (completedCountError) throw completedCountError;
+
+    const newProcessedItems = completedChunks || 0;
     const progressPercent = 20 + Math.floor((newProcessedItems / job.total_chunks) * 60);
 
     await supabase.from('book_jobs').update({ processed_chunks: newProcessedItems }).eq('id', job.id);
@@ -129,7 +189,7 @@ export async function POST(
 
     return NextResponse.json({ 
       success: true, 
-      processed: chunks.length, 
+      processed: claimedChunks.length, 
       totalProcessed: newProcessedItems,
       totalChunks: job.total_chunks,
       progress: progressPercent,

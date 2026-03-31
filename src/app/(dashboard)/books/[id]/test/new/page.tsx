@@ -30,6 +30,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    let createdTestId: string | null = null;
 
     try {
       // 1. Calculate distributions into arrays for the API
@@ -89,6 +90,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
 
       if (testErr) throw testErr;
       if (!test) throw new Error('No se pudo crear el registro de la evaluacion.');
+      createdTestId = test.id;
 
       // 3. Call Generation API
       const res = await fetch('/api/tests/generate', {
@@ -130,6 +132,9 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
       router.push(`/books/${params.id}/test/${test.id}`);
 
     } catch (error) {
+      if (createdTestId) {
+        await supabase.from('tests').delete().eq('id', createdTestId);
+      }
       console.error('Error generating test:', error);
       alert('Error al generar la prueba. Por favor intenta nuevamente.');
       setLoading(false);
