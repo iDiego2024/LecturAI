@@ -10,14 +10,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1') {
-      setEmail(DEMO_EMAIL);
-      setPassword(DEMO_PASSWORD);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('demo') === '1') {
+        setEmail(DEMO_EMAIL);
+        setPassword(DEMO_PASSWORD);
+      }
+      if (params.get('confirmed') === '1') {
+        setInfoMessage('Tu correo fue confirmado. Ya puedes iniciar sesion en LecturAI.');
+      }
     }
   }, []);
 
@@ -82,6 +89,12 @@ export default function LoginPage() {
         {error && (
           <div className="auth-error">
             {error}
+          </div>
+        )}
+
+        {infoMessage && (
+          <div className="auth-info">
+            {infoMessage}
           </div>
         )}
 
@@ -187,6 +200,17 @@ export default function LoginPage() {
           border: 1px solid rgba(239, 68, 68, 0.2);
           margin-bottom: 1.5rem;
           font-size: 0.9rem;
+        }
+
+        .auth-info {
+          background: var(--success-bg);
+          color: #1d6d49;
+          padding: 1rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid rgba(47, 153, 103, 0.22);
+          margin-bottom: 1.5rem;
+          font-size: 0.9rem;
+          line-height: 1.6;
         }
         
         .form-group {

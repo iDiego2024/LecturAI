@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirma tu correo en LecturAI</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#fff8f1;font-family:'Avenir Next','Segoe UI','Helvetica Neue',Arial,sans-serif;color:#352418;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#fff8f1;margin:0;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:640px;background:#ffffff;border:1px solid rgba(144,100,68,0.16);border-radius:24px;overflow:hidden;box-shadow:0 12px 26px rgba(140,88,56,0.12);">
+            <tr>
+              <td style="padding:32px 32px 20px;background:linear-gradient(135deg,#fff3e3 0%,#fffaf4 100%);border-bottom:1px solid rgba(144,100,68,0.12);">
+                <div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#97745e;font-weight:700;margin-bottom:12px;">
+                  LecturAI
+                </div>
+                <h1 style="margin:0;font-size:30px;line-height:1.15;color:#352418;">
+                  Confirma tu correo y empecemos a leer juntos
+                </h1>
+                <p style="margin:14px 0 0;font-size:16px;line-height:1.7;color:#6e5340;">
+                  {{ if .Data.full_name }}Hola {{ .Data.full_name }},{{ else }}Hola,{{ end }} ya casi tienes tu cuenta lista para convertir libros en evaluaciones.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:32px;">
+                <p style="margin:0 0 16px;font-size:16px;line-height:1.8;color:#6e5340;">
+                  Solo falta confirmar que este correo te pertenece:
+                  <strong style="color:#352418;">{{ .Email }}</strong>
+                </p>
+
+                {{ if .Data.school_name }}
+                <p style="margin:0 0 16px;font-size:16px;line-height:1.8;color:#6e5340;">
+                  Hemos registrado tu establecimiento como:
+                  <strong style="color:#352418;">{{ .Data.school_name }}</strong>
+                </p>
+                {{ end }}
+
+                <p style="margin:0 0 28px;font-size:16px;line-height:1.8;color:#6e5340;">
+                  Al confirmar tu cuenta podrás ingresar a LecturAI, subir un libro completo y generar evaluaciones con resumen, personajes, temáticas y análisis narrativo.
+                </p>
+
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">
+                  <tr>
+                    <td align="center" bgcolor="#d96634" style="border-radius:14px;">
+                      <a
+                        href="{{ .ConfirmationURL }}"
+                        style="display:inline-block;padding:15px 24px;font-size:16px;font-weight:700;color:#fffaf5;text-decoration:none;border-radius:14px;background:linear-gradient(135deg,#d96634 0%,#f2a545 100%);"
+                      >
+                        Confirmar mi correo
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 10px;font-size:14px;line-height:1.7;color:#97745e;">
+                  Si el boton no funciona, copia y pega este enlace en tu navegador:
+                </p>
+                <p style="margin:0 0 28px;font-size:14px;line-height:1.8;word-break:break-word;color:#6e5340;">
+                  <a href="{{ .ConfirmationURL }}" style="color:#d96634;text-decoration:underline;">{{ .ConfirmationURL }}</a>
+                </p>
+
+                <div style="padding:18px 20px;background:#fff7ec;border:1px solid rgba(217,102,52,0.16);border-radius:16px;">
+                  <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#8c4f2a;">
+                    Antes de seguir:
+                  </p>
+                  <p style="margin:0;font-size:14px;line-height:1.7;color:#6e5340;">
+                    Una vez confirmado el correo, vuelve a LecturAI e inicia sesion para entrar a tu biblioteca y comenzar a procesar libros.
+                  </p>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:24px 32px 32px;border-top:1px solid rgba(144,100,68,0.12);">
+                <p style="margin:0 0 8px;font-size:13px;line-height:1.7;color:#97745e;">
+                  Si no creaste esta cuenta, puedes ignorar este mensaje.
+                </p>
+                <p style="margin:0;font-size:13px;line-height:1.7;color:#97745e;">
+                  Ir a LecturAI:
+                  <a href="{{ .SiteURL }}" style="color:#d96634;text-decoration:none;">{{ .SiteURL }}</a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

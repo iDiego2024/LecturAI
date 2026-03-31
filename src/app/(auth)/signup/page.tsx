@@ -11,6 +11,7 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -19,6 +20,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -28,7 +30,11 @@ export default function SignupPage() {
           data: {
             full_name: fullName,
             school_name: schoolName || null,
-          }
+          },
+          emailRedirectTo:
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/login?confirmed=1`
+              : undefined,
         }
       });
 
@@ -49,8 +55,12 @@ export default function SignupPage() {
         }
       }
 
-      router.push('/books');
-      router.refresh();
+      if (data.session) {
+        router.push('/books');
+        router.refresh();
+      } else {
+        setSuccessMessage(`Te enviamos un correo de confirmacion a ${email}. Revisa tu bandeja de entrada y luego vuelve para iniciar sesion.`);
+      }
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrarse');
@@ -74,6 +84,12 @@ export default function SignupPage() {
         {error && (
           <div className="auth-error">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="auth-success">
+            {successMessage}
           </div>
         )}
 
@@ -185,6 +201,17 @@ export default function SignupPage() {
           border: 1px solid rgba(239, 68, 68, 0.2);
           margin-bottom: 1.5rem;
           font-size: 0.9rem;
+        }
+
+        .auth-success {
+          background: var(--success-bg);
+          color: #1d6d49;
+          padding: 1rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid rgba(47, 153, 103, 0.22);
+          margin-bottom: 1.5rem;
+          font-size: 0.92rem;
+          line-height: 1.6;
         }
         
         .form-group { margin-bottom: 1.25rem; }
