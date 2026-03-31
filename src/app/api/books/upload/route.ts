@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createAuthClient } from '@/lib/supabase/server';
 import { extractTextFromPdf } from '@/lib/pdf/extract';
-import { extractTextFromEpub } from '@/lib/pdf/extractEpub';
+import { extractCoverFromEpub, extractTextFromEpub } from '@/lib/pdf/extractEpub';
 import { normalizeText } from '@/lib/pdf/normalize';
 import { chunkText } from '@/lib/pdf/chunk';
+import { DEMO_MAX_BOOKS, isDemoEmail } from '@/lib/demo';
+import { renderPdfCover } from '@/lib/pdf/cover';
 
 export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro on normal routes
 
@@ -22,6 +24,20 @@ export async function POST(request: Request) {
     );
     const userId = user.id;
 
+    if (isDemoEmail(user.email)) {
+      const { count } = await authClient
+        .from('books')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if ((count || 0) >= DEMO_MAX_BOOKS) {
+        return NextResponse.json(
+          { error: 'La cuenta demo permite subir solo 1 libro.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Ensure the profile exists (older accounts or externally-created users
     // may exist in auth.users but not yet in public.profiles).
     const { error: profileError } = await supabase
@@ -31,6 +47,8 @@ export async function POST(request: Request) {
           id: user.id,
           email: user.email ?? 'unknown@lecturai.local',
           full_name: (user.user_metadata as { full_name?: string } | null)?.full_name ?? null,
+          school_name: (user.user_metadata as { school_name?: string } | null)?.school_name ?? null,
+          avatar_url: (user.user_metadata as { avatar_url?: string } | null)?.avatar_url ?? null,
         },
         { onConflict: 'id' }
       );
@@ -89,15 +107,44 @@ export async function POST(request: Request) {
     // 1. EXTRACT
     let text = '';
     let pages = 0;
+    let cover: { data: Buffer; mime: string } | null = null;
     
     if (file.name.toLowerCase().endsWith('.epub')) {
       const result = await extractTextFromEpub(buffer);
       text = result.text;
       pages = result.pages;
+      cover = await extractCoverFromEpub(buffer);
     } else {
       const result = await extractTextFromPdf(buffer);
       text = result.text;
       pages = result.pages;
+      cover = await renderPdfCover(buffer);
+    }
+
+    if (cover) {
+      const bucket = 'covers';
+      const { data: bucketData } = await supabase.storage.getBucket(bucket);
+      if (!bucketData) {
+        await supabase.storage.createBucket(bucket, {
+          public: true,
+          fileSizeLimit: 5 * 1024 * 1024,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'],
+        });
+      }
+
+      const ext = cover.mime.includes('png') ? 'png' : 'jpg';
+      const coverPath = `${userId}/${book.id}.${ext}`;
+      const { error: coverUploadError } = await supabase.storage
+        .from(bucket)
+        .upload(coverPath, cover.data, {
+          contentType: cover.mime,
+          upsert: true,
+        });
+
+      if (!coverUploadError) {
+        const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(coverPath);
+        await supabase.from('books').update({ cover_url: publicUrlData.publicUrl }).eq('id', book.id);
+      }
     }
 
     await supabase.from('books').update({ 

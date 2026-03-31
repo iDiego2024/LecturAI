@@ -69,10 +69,13 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
 
       // 2. Create Test Record
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Debes iniciar sesion para generar una evaluacion.');
+      }
       const { data: test, error: testErr } = await supabase
         .from('tests')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           book_id: params.id,
           title,
           target_grade: targetGrade,
@@ -83,6 +86,7 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
         .single();
 
       if (testErr) throw testErr;
+      if (!test) throw new Error('No se pudo crear el registro de la evaluacion.');
 
       // 3. Call Generation API
       const res = await fetch('/api/tests/generate', {
@@ -113,10 +117,12 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
         };
       });
 
-      await supabase.from('test_items').insert(testItems);
+      const { error: testItemsError } = await supabase.from('test_items').insert(testItems);
+      if (testItemsError) throw testItemsError;
       
       // Update total score
-      await supabase.from('tests').update({ total_score: totalPoints }).eq('id', test.id);
+      const { error: scoreError } = await supabase.from('tests').update({ total_score: totalPoints }).eq('id', test.id);
+      if (scoreError) throw scoreError;
 
       // 5. Redirect to review page
       router.push(`/books/${params.id}/test/${test.id}`);

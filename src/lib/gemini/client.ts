@@ -52,11 +52,10 @@ export function getGenerationModel() {
 export async function generateEmbedding(text: string): Promise<number[]> {
   const model = genAI.getGenerativeModel({ model: MODELS.EMBEDDING });
   
-  // @ts-ignore - The SDK types might not fully support outputDimensionality or optional roles yet
   const result = await model.embedContent({
     content: { role: 'user', parts: [{ text }] },
     outputDimensionality: 768
-  });
+  } as any);
   
   return result.embedding.values;
 }
@@ -69,13 +68,12 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
   const model = genAI.getGenerativeModel({ model: MODELS.EMBEDDING });
   
   const result = await model.batchEmbedContents({
-    // @ts-ignore - The SDK types might not fully support outputDimensionality inside requests yet
     requests: texts.map(text => ({
       model: 'models/' + MODELS.EMBEDDING,
       content: { role: 'user', parts: [{ text }] },
       outputDimensionality: 768
     }))
-  });
+  } as any);
   
   return result.embeddings.map(e => e.values);
 }

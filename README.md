@@ -2,7 +2,7 @@
 
 **Evaluaciones de lectura que realmente miden comprensión profunda.**
 
-LecturAI es una plataforma diseñada para docentes que permite subir un libro en formato PDF, procesarlo mediante Inteligencia Artificial (Google Gemini 2.0), y generar pruebas de comprensión lectora niveladas y con sustento pedagógico.
+LecturAI es una plataforma diseñada para docentes que permite subir un libro en formato PDF/EPUB, procesarlo mediante Inteligencia Artificial (Google Gemini), y generar pruebas de comprensión lectora niveladas y con sustento pedagógico.
 
 A diferencia de los resúmenes genéricos, LecturAI **lee el libro completo**, extrae personajes, eventos y temas, y luego utiliza generación aumentada por recuperación (RAG) para trazar cada pregunta a fragmentos exactos del libro, evitando ambigüedades o alucinaciones.
 
@@ -12,7 +12,7 @@ A diferencia de los resúmenes genéricos, LecturAI **lee el libro completo**, e
 - 🧠 **Niveles Cognitivos:** Permite distribuir preguntas entre Localizar, Interpretar y Reflexionar.
 - 🎯 **Tipos de Múltiples:** Selección múltiple, verdadero/falso y desarrollo.
 - 📝 **Exportación Dual:** Genera documento Word listo para imprimir para el alumno, y otro con pautas de corrección para el docente.
-- 🎨 **Diseño Premium:** Interfaz oscura (dark mode) diseñada para dar confianza y claridad.
+- 🎨 **Diseño Cálido Educativo:** Interfaz pensada para contexto escolar, accesible y cercana.
 
 ## Arquitectura
 
@@ -39,20 +39,19 @@ A diferencia de los resúmenes genéricos, LecturAI **lee el libro completo**, e
 3. Copia el contenido completo de `supabase/migrations/001_initial_schema.sql` y ejecútalo. Esto creará todas las tablas, vistas, y roles de seguridad necesarios.
 4. Ve a **Storage** y crea un _Bucket_ público llamado `books`.
 
-### 3. Configuración Local
+### 3. Configuración Local (segura)
 
 Restaura el archivo de ambiente:
 \`\`\`bash
 cp .env.local.example .env.local
 \`\`\`
 
-Rellena tus credenciales en `.env.local`:
-\`\`\`env
-NEXT_PUBLIC_SUPABASE_URL=https://tu-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
-SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
-GEMINI_API_KEY=tu-api-key-de-google-ai
-\`\`\`
+Completa `.env.local` con tus credenciales **solo en local/Vercel**.
+
+Importante:
+- Nunca subas claves reales al repositorio.
+- Mantén `.env.local` fuera de control de versiones.
+- Usa únicamente valores de ejemplo en `.env.local.example`.
 
 ### 4. Instalación e Inicio
 
@@ -69,7 +68,7 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador para ver la 
 
 1. Sube este repositorio a GitHub.
 2. Crea un nuevo proyecto en Vercel e importa el repositorio.
-3. Configura todas las variables de entorno del paso 3.
+3. Configura las variables de entorno en Vercel usando tus credenciales privadas.
 4. (Opcional pero recomendado para pruebas grandes) Cambia la "Serverless Function Maximum Execution Duration" a 60 segundos si estás en plan Pro. Si los libros a subir superan las 300 páginas y se experimentan timeouts de Vercel Hobby (10s), se recomienda implementar Background Jobs o Supabase Edge Functions para el pipeline de ingesta.
 
 ---

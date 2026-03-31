@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import DeleteBookButton from './DeleteBookButton';
+import { isDemoEmail } from '@/lib/demo';
 
 export default async function BooksPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const isDemo = isDemoEmail(user?.email);
 
   const { data: books, error } = await supabase
     .from('books')
@@ -24,6 +26,12 @@ export default async function BooksPage() {
         </Link>
       </div>
 
+      {isDemo && (
+        <div className="demo-banner">
+          Modo demo: puedes subir 1 libro y generar 1 evaluacion. Las descargas estan deshabilitadas.
+        </div>
+      )}
+
       {!books || books.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📚</div>
@@ -39,7 +47,18 @@ export default async function BooksPage() {
             <div key={book.id} className="book-card glass-panel">
               <Link href={`/books/${book.id}`} className="book-card-link">
                 <div className="book-cover">
-                  {book.title.charAt(0)}
+                  {book.cover_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={book.cover_url} alt={`Caratula de ${book.title}`} />
+                  ) : (
+                    <div
+                      className="cover-fallback"
+                      style={{ background: getCoverGradient(book.title, book.author) }}
+                    >
+                      <div className="cover-title">{book.title}</div>
+                      <div className="cover-author">{book.author || 'Autor desconocido'}</div>
+                    </div>
+                  )}
                 </div>
                 <div className="book-info">
                   <h3 className="book-title" title={book.title}>{book.title}</h3>
@@ -97,6 +116,15 @@ export default async function BooksPage() {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 1.5rem;
+        }
+
+        .demo-banner {
+          margin-bottom: 1.25rem;
+          padding: 0.95rem 1rem;
+          border-radius: var(--radius-md);
+          background: var(--warning-bg);
+          color: var(--warning);
+          font-weight: 700;
         }
 
         .book-card {
@@ -166,17 +194,55 @@ export default async function BooksPage() {
         .book-cover {
           width: 80px;
           height: 110px;
-          background: var(--accent-gradient);
           border-radius: var(--radius-sm);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-family: var(--font-serif);
-          font-size: 2.5rem;
-          font-weight: 700;
-          color: #fff9f2;
           box-shadow: var(--shadow-sm);
           flex-shrink: 0;
+          overflow: hidden;
+        }
+
+        .book-cover img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .cover-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: flex-start;
+          justify-content: flex-end;
+          flex-direction: column;
+          padding: 0.6rem;
+          font-family: var(--font-serif);
+          font-size: 0.6rem;
+          font-weight: 700;
+          color: #fff9f2;
+          gap: 0.25rem;
+        }
+
+        .cover-title {
+          font-size: 0.65rem;
+          line-height: 1.1;
+          max-height: 2.6em;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .cover-author {
+          font-size: 0.55rem;
+          opacity: 0.85;
+          line-height: 1.1;
+          max-height: 2.2em;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
         }
 
         .book-info {
@@ -279,4 +345,15 @@ function getStatusLabel(status: string) {
     case 'analyzing': return 'I.A. Analizando...';
     default: return status;
   }
+}
+
+function getCoverGradient(title: string, author?: string | null) {
+  const seed = `${title || ''}-${author || ''}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) % 360;
+  }
+  const hue = hash;
+  const hue2 = (hash + 35) % 360;
+  return `linear-gradient(160deg, hsl(${hue} 65% 45%) 0%, hsl(${hue2} 70% 38%) 100%)`;
 }

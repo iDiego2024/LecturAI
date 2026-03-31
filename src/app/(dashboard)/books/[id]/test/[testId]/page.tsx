@@ -2,10 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import DeleteTestButton from './DeleteTestButton';
+import ShareByEmailButton from '@/components/ShareByEmailButton';
+import { isDemoEmail } from '@/lib/demo';
 
 export default async function ReviewTestPage({ params }: { params: { id: string, testId: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const isDemo = isDemoEmail(user?.email);
 
   // Fetch test details with all questions
   const { data: test, error } = await supabase
@@ -55,14 +58,28 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         
         <div className="export-actions">
           <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
-          <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary" target="_blank">
-            <span className="mr-2">📄</span> Exportar Alumno (Word)
-          </a>
-          <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow" target="_blank">
-            <span className="mr-2">✅</span> Exportar Docente (Word)
-          </a>
+          <ShareByEmailButton
+            subject={`Evaluacion: ${t.title}`}
+            body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
+          />
+          {!isDemo && (
+            <>
+              <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary" target="_blank">
+                <span className="mr-2">📄</span> Exportar Alumno (Word)
+              </a>
+              <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow" target="_blank">
+                <span className="mr-2">✅</span> Exportar Docente (Word)
+              </a>
+            </>
+          )}
         </div>
       </div>
+
+      {isDemo && (
+        <div className="demo-note mb-8">
+          Modo demo: puedes revisar la evaluacion, pero las descargas estan deshabilitadas.
+        </div>
+      )}
 
       <div className="test-content mt-8">
         <div className="instructions-box p-6 mb-8">
@@ -177,6 +194,14 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           border: 1px solid var(--border-light);
           border-radius: var(--radius-lg);
           border-left: 4px solid var(--accent-primary);
+        }
+
+        .demo-note {
+          padding: 0.95rem 1rem;
+          background: var(--warning-bg);
+          color: var(--warning);
+          border-radius: var(--radius-md);
+          font-weight: 700;
         }
         
         .page-header {

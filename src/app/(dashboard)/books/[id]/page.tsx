@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import BookProcessingClient from './BookProcessingClient';
+import ShareByEmailButton from '@/components/ShareByEmailButton';
 
 export default async function BookDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -71,10 +72,19 @@ export default async function BookDetailPage({ params }: { params: { id: string 
           <h1 className="page-title font-serif">{book.title}</h1>
           <p className="page-subtitle">{book.author || 'Autor desconocido'} • {book.page_count} páginas leídas por IA</p>
         </div>
-        
-        <Link href={`/books/${book.id}/test/new`} className="btn btn-primary btn-glow">
-          <span className="text-xl mr-2">✨</span> Generar Prueba
-        </Link>
+
+        <div className="header-actions">
+          <Link href={`/books/${book.id}/summary`} className="btn btn-secondary">
+            Ver resumen completo
+          </Link>
+          <ShareByEmailButton
+            subject={`Resumen del libro: ${book.title}`}
+            body={`Te comparto el resumen analizado del libro "${book.title}".`}
+          />
+          <Link href={`/books/${book.id}/test/new`} className="btn btn-primary btn-glow">
+            <span className="text-xl mr-2">✨</span> Generar Prueba
+          </Link>
+        </div>
       </div>
 
       <div className="content-grid">
@@ -171,6 +181,13 @@ export default async function BookDetailPage({ params }: { params: { id: string 
           font-size: 1.1rem;
         }
 
+        .header-actions {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+
         .content-grid {
           display: grid;
           grid-template-columns: 2fr 1fr;
@@ -179,6 +196,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
 
         @media (max-width: 1024px) {
           .content-grid { grid-template-columns: 1fr; }
+          .header-actions { justify-content: flex-start; }
         }
 
         .section-card {

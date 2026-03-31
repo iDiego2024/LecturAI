@@ -15,6 +15,7 @@ create table profiles (
   email text not null,
   full_name text,
   school_name text,
+  avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -24,6 +25,7 @@ create table books (
   user_id uuid references profiles(id) on delete cascade not null,
   title text not null,
   author text,
+  cover_url text,
   file_path text not null, -- path in storage bucket
   file_size_bytes bigint,
   page_count integer,

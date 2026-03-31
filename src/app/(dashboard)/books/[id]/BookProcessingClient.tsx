@@ -11,11 +11,14 @@ interface Props {
 
 export default function BookProcessingClient({ bookId, initialStatus, initialProgress }: Props) {
   const router = useRouter();
+  const RETRY_DELAY_SECONDS = 60;
   
   const [status, setStatus] = useState<string>(initialStatus);
   const [progress, setProgress] = useState<number>(initialProgress);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [retryAvailableAt, setRetryAvailableAt] = useState<number | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
   
   const [currentAction, setCurrentAction] = useState<string>('Iniciando procesamiento...');
   
@@ -26,10 +29,30 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
     if (!isPaused && status !== 'failed') {
       startProcessing();
     }
+    // We intentionally run this only once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!retryAvailableAt) return;
+
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((retryAvailableAt - Date.now()) / 1000));
+      setSecondsRemaining(remaining);
+      if (remaining <= 0) {
+        window.clearInterval(timer);
+      }
+    }, 1000);
+
+    const initialRemaining = Math.max(0, Math.ceil((retryAvailableAt - Date.now()) / 1000));
+    setSecondsRemaining(initialRemaining);
+
+    return () => window.clearInterval(timer);
+  }, [retryAvailableAt]);
 
   const startProcessing = async () => {
     if (processingRef.current) return;
+    if (retryAvailableAt && Date.now() < retryAvailableAt) return;
     processingRef.current = true;
     setIsPaused(false);
     setErrorMsg(null);
@@ -76,6 +99,8 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
       setStatus('failed');
       setIsPaused(true);
       setErrorMsg(err.message || 'Error al procesar chunks');
+      setRetryAvailableAt(Date.now() + RETRY_DELAY_SECONDS * 1000);
+      setSecondsRemaining(RETRY_DELAY_SECONDS);
       processingRef.current = false;
     }
   };
@@ -107,6 +132,8 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
       setStatus('failed');
       setIsPaused(true);
       setErrorMsg(err.message || 'Error en consolidación');
+      setRetryAvailableAt(Date.now() + RETRY_DELAY_SECONDS * 1000);
+      setSecondsRemaining(RETRY_DELAY_SECONDS);
       processingRef.current = false;
     }
   };
@@ -121,6 +148,8 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
   const handleResume = () => {
     startProcessing();
   };
+
+  const isRetryLocked = Boolean(retryAvailableAt && Date.now() < retryAvailableAt);
 
   let displayStatus = 'Procesando...';
   if (status === 'failed') displayStatus = 'Error detectado';
@@ -149,14 +178,21 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
       {errorMsg && (
          <div className="error-box p-4 rounded-md mb-6 text-sm">
            <strong>Error:</strong> {errorMsg}
-           <p className="mt-1 text-xs opacity-70">Es posible que hayamos alcanzado los límites de la API de Gemini. Pausa un momento y reanuda.</p>
+           <p className="mt-1 text-xs opacity-70">
+             Si el corte fue por la API, espera al menos 1 minuto antes de reanudar para evitar otro bloqueo inmediato.
+           </p>
+           {isRetryLocked && (
+             <p className="retry-timer mt-1 text-xs">
+               Podras reanudar en {secondsRemaining}s.
+             </p>
+           )}
          </div>
       )}
 
       <div className="flex justify-center gap-4 mt-6">
         {isPaused || status === 'failed' ? (
-          <button onClick={handleResume} className="btn btn-primary">
-            ▶ Reanudar Análisis
+          <button onClick={handleResume} className="btn btn-primary" disabled={isRetryLocked}>
+            {isRetryLocked ? `Reanudar en ${secondsRemaining}s` : '▶ Reanudar Analisis'}
           </button>
         ) : (
           <button onClick={handlePause} className="btn btn-secondary">
@@ -189,6 +225,10 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
           background: var(--danger-bg);
           color: #8f3030;
           border: 1px solid rgba(193, 63, 63, 0.28);
+        }
+        .retry-timer {
+          color: #7e2f2f;
+          font-weight: 700;
         }
       `}</style>
     </div>

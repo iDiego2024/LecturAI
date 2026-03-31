@@ -27,6 +27,7 @@ export default function SignupPage() {
         options: {
           data: {
             full_name: fullName,
+            school_name: schoolName || null,
           }
         }
       });

@@ -27,6 +27,9 @@ export default function Home() {
             <a href="#features" className="btn btn-secondary btn-lg">
               Ver cómo se siente
             </a>
+            <Link href="/login?demo=1" className="btn btn-secondary btn-lg">
+              Ver demo
+            </Link>
           </div>
 
           <div className="hero-note glass-panel">

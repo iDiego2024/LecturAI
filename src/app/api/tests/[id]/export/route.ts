@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateWordDocument } from '@/lib/export/docx';
+import { isDemoEmail } from '@/lib/demo';
 
 export async function GET(
   request: Request,
@@ -17,23 +18,24 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Generate Document buffer
-    const buffer = await generateWordDocument({
+    if (isDemoEmail(user.email)) {
+      return NextResponse.json(
+        { error: 'La cuenta demo no permite descargar evaluaciones.' },
+        { status: 403 }
+      );
+    }
+
+    // Generate document only for tests owned by authenticated user
+    const { buffer, title } = await generateWordDocument({
       testId: params.id,
-      isTeacherVersion: version === 'teacher'
+      isTeacherVersion: version === 'teacher',
+      userId: user.id,
     });
 
-    // Determine filename
-    const { data: test } = await supabase
-      .from('tests')
-      .select('title')
-      .eq('id', params.id)
-      .single();
-      
-    const filename = `${test?.title || 'Prueba'}_${version === 'teacher' ? 'Docente' : 'Alumno'}.docx`.replace(/\s+/g, '_');
+    const filename = `${title || 'Prueba'}_${version === 'teacher' ? 'Docente' : 'Alumno'}.docx`.replace(/\s+/g, '_');
 
     // Return as downloadable file
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
