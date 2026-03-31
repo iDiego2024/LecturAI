@@ -49,31 +49,30 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
   return (
     <div className="review-test">
       <div className="page-header pb-4 border-b border-light">
-        <div>
+        <div className="page-heading">
           <Link href={`/books/${params.id}`} className="back-link mb-2">← Volver al Libro</Link>
           <h1 className="page-title">{t.title}</h1>
           <p className="page-subtitle">
             {t.books.title} • {t.target_grade} • {t.total_score} puntos
           </p>
-        </div>
-        
-        <div className="export-actions">
-          <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
-          <ShareByEmailButton
-            subject={`Evaluacion: ${t.title}`}
-            body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
-            shareUrl={`${appUrl}/books/${params.id}/test/${params.testId}`}
-          />
-          {!isDemo && (
-            <>
-              <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary action-btn" target="_blank" rel="noopener noreferrer">
-                <span className="mr-2">📄</span> Exportar Alumno (Word)
-              </a>
-              <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow action-btn" target="_blank" rel="noopener noreferrer">
-                <span className="mr-2">✅</span> Exportar Docente (Word)
-              </a>
-            </>
-          )}
+          <div className="export-actions">
+            <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
+            <ShareByEmailButton
+              subject={`Evaluacion: ${t.title}`}
+              body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
+              shareUrl={`${appUrl}/books/${params.id}/test/${params.testId}`}
+            />
+            {!isDemo && (
+              <>
+                <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary action-btn" target="_blank" rel="noopener noreferrer">
+                  <span className="mr-2">📄</span> Alumno
+                </a>
+                <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow action-btn" target="_blank" rel="noopener noreferrer">
+                  <span className="mr-2">✅</span> Docente
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -207,34 +206,36 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         }
         
         .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 1.5rem;
+          display: block;
+        }
+
+        .page-heading {
+          max-width: 100%;
         }
 
         @media (max-width: 768px) {
-          .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
           .export-actions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
           .export-actions .btn { width: 100%; justify-content: center; }
         }
 
         .export-actions {
           display: grid;
-          grid-template-columns: repeat(2, minmax(210px, max-content));
-          gap: 0.75rem;
-          justify-content: end;
+          grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
+          gap: 0.6rem;
+          justify-content: start;
           align-items: stretch;
+          margin-top: 1rem;
         }
 
         .export-actions .btn {
           white-space: nowrap;
-          min-height: 48px;
-          padding: 0.78rem 1.1rem;
-          font-size: 0.95rem;
+          min-height: 40px;
+          padding: 0.62rem 0.95rem;
+          font-size: 0.88rem;
+          font-weight: 700;
           justify-content: center;
           text-align: center;
-          border-radius: 16px;
+          border-radius: 14px;
         }
 
         .action-btn {
@@ -243,7 +244,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         }
         
         .btn-glow {
-          box-shadow: 0 10px 24px rgba(217, 102, 52, 0.26);
+          box-shadow: 0 8px 18px rgba(217, 102, 52, 0.2);
         }
 
         .questions-list {
