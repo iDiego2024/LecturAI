@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import BookProcessingClient from './BookProcessingClient';
-import ShareByEmailButton from '@/components/ShareByEmailButton';
+import ShareButton from '@/components/ShareByEmailButton';
 
 export default async function BookDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -78,7 +78,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
           <Link href={`/books/${book.id}/summary`} className="btn btn-secondary">
             Ver resumen completo
           </Link>
-          <ShareByEmailButton
+          <ShareButton
             subject={`Resumen del libro: ${book.title}`}
             body={`Te comparto el resumen analizado del libro "${book.title}".`}
             shareUrl={`${appUrl}/books/${book.id}`}

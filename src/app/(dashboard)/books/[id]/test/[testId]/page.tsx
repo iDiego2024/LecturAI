@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import DeleteTestButton from './DeleteTestButton';
-import ShareByEmailButton from '@/components/ShareByEmailButton';
+import ShareButton from '@/components/ShareByEmailButton';
 import { isDemoEmail } from '@/lib/demo';
 
 export default async function ReviewTestPage({ params }: { params: { id: string, testId: string } }) {
@@ -57,7 +57,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           </p>
           <div className="export-actions">
             <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
-            <ShareByEmailButton
+            <ShareButton
               subject={`Evaluacion: ${t.title}`}
               body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
               shareUrl={`${appUrl}/books/${params.id}/test/${params.testId}`}
