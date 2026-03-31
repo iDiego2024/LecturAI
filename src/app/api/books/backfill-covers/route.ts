@@ -64,10 +64,16 @@ export async function POST() {
         const coverPath = `${user.id}/${book.id}.${ext}`;
         const { error: coverUploadError } = await supabase.storage
           .from(bucket)
-          .upload(coverPath, new Uint8Array(cover.data), {
-            contentType: cover.mime,
-            upsert: true,
-          });
+          .upload(
+            coverPath,
+            new Blob([new Uint8Array(cover.data)], {
+              type: cover.mime || 'application/octet-stream',
+            }),
+            {
+              contentType: cover.mime,
+              upsert: true,
+            }
+          );
 
         if (coverUploadError) {
           failed += 1;

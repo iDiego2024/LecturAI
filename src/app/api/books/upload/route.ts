@@ -77,12 +77,14 @@ export async function POST(request: Request) {
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const fileBytes = new Uint8Array(arrayBuffer);
+    const fileBlob = new Blob([arrayBuffer], {
+      type: file.type || 'application/octet-stream',
+    });
 
     const { error: uploadError } = await supabase
       .storage
       .from('books')
-      .upload(fileName, fileBytes, {
+      .upload(fileName, fileBlob, {
         contentType: file.type,
       });
 
@@ -137,10 +139,16 @@ export async function POST(request: Request) {
       const coverPath = `${userId}/${book.id}.${ext}`;
       const { error: coverUploadError } = await supabase.storage
         .from(bucket)
-        .upload(coverPath, new Uint8Array(cover.data), {
+        .upload(
+          coverPath,
+          new Blob([new Uint8Array(cover.data)], {
+            type: cover.mime || 'application/octet-stream',
+          }),
+          {
           contentType: cover.mime,
           upsert: true,
-        });
+          }
+        );
 
       if (!coverUploadError) {
         const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(coverPath);
