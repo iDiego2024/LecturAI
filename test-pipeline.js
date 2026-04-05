@@ -18,7 +18,7 @@ async function run() {
   const { data: book, error: bErr } = await supabase.from('books').insert({
     user_id: userId,
     title: 'Test Resumable Book',
-    author: 'LecturAI Tester',
+    author: 'Comprendia Tester',
     file_path: 'mock/test.pdf',
     file_size_bytes: 1024,
     processing_status: 'chunking'

@@ -1,80 +1,320 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+
+type CognitiveKey = 'locate' | 'interpret' | 'reflect';
+type QuestionTypeKey =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'development'
+  | 'matching'
+  | 'creative_writing';
+
+const cognitiveLabels: Record<CognitiveKey, string> = {
+  locate: 'Localizar',
+  interpret: 'Interpretar',
+  reflect: 'Reflexionar',
+};
+
+const typeLabels: Record<QuestionTypeKey, string> = {
+  multiple_choice: 'Seleccion multiple',
+  true_false: 'Verdadero o falso',
+  development: 'Desarrollo',
+  matching: 'Terminos pareados',
+  creative_writing: 'Escritura creativa',
+};
+
+const defaultCognitiveCounts: Record<CognitiveKey, number> = {
+  locate: 3,
+  interpret: 4,
+  reflect: 3,
+};
+
+const defaultTypeCounts: Record<QuestionTypeKey, number> = {
+  multiple_choice: 4,
+  true_false: 2,
+  development: 2,
+  matching: 1,
+  creative_writing: 1,
+};
+
+const cognitiveDescriptions: Record<CognitiveKey, string> = {
+  locate: 'Identifica información explícita del texto: hechos, personajes y datos directos.',
+  interpret: 'Relaciona ideas e infiere motivaciones, causas y consecuencias.',
+  reflect: 'Evalúa críticamente, argumenta y conecta la lectura con contexto personal o social.',
+};
+
+function buildDistributionArray<T extends string>(counts: Record<T, number>) {
+  return (Object.keys(counts) as T[]).flatMap((key) =>
+    Array.from({ length: counts[key] }, () => key)
+  );
+}
+
+function interleavePlan(cognitiveCounts: Record<CognitiveKey, number>, typeCounts: Record<QuestionTypeKey, number>) {
+  const cognitiveQueue = buildDistributionArray(cognitiveCounts);
+  const typeQueue = buildDistributionArray(typeCounts);
+  const size = Math.min(cognitiveQueue.length, typeQueue.length);
+
+  return Array.from({ length: size }, (_, index) => ({
+    cognitiveLevel: cognitiveQueue[index],
+    questionType: typeQueue[index],
+  }));
+}
+
+function totalCount<T extends string>(counts: Record<T, number>) {
+  return (Object.keys(counts) as T[]).reduce((sum, key) => sum + counts[key], 0);
+}
+
+function updateCountsWithLimit<T extends string>(
+  previous: Record<T, number>,
+  key: T,
+  value: number,
+  maxTotal: number
+) {
+  const next: Record<T, number> = { ...previous, [key]: Math.max(0, Math.min(45, value)) };
+  let overflow = totalCount(next) - maxTotal;
+
+  if (overflow <= 0) return next;
+
+  const orderedKeys = (Object.keys(next) as T[]).filter((currentKey) => currentKey !== key);
+  for (const currentKey of orderedKeys) {
+    if (overflow <= 0) break;
+    const reducible = Math.min(next[currentKey], overflow);
+    next[currentKey] -= reducible;
+    overflow -= reducible;
+  }
+
+  if (overflow > 0) {
+    next[key] = Math.max(0, next[key] - overflow);
+  }
+
+  return next;
+}
+
+function clampCountsToTotal<T extends string>(counts: Record<T, number>, maxTotal: number) {
+  const normalized: Record<T, number> = { ...counts };
+  const keys = Object.keys(normalized) as T[];
+  let overflow = totalCount(normalized) - maxTotal;
+
+  if (overflow <= 0) return normalized;
+
+  for (const key of keys) {
+    if (overflow <= 0) break;
+    const reducible = Math.min(normalized[key], overflow);
+    normalized[key] -= reducible;
+    overflow -= reducible;
+  }
+
+  return normalized;
+}
+
+function CountEditor<T extends string>({
+  title,
+  description,
+  counts,
+  labels,
+  descriptions,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  counts: Record<T, number>;
+  labels: Record<T, string>;
+  descriptions?: Partial<Record<T, string>>;
+  onChange: (key: T, value: number) => void;
+}) {
+  return (
+    <section className="glass-panel count-editor-card">
+      <h2 className="count-editor-title">{title}</h2>
+      <p className="count-editor-help">{description}</p>
+      <div className="count-editor-list">
+        {Object.keys(counts).map((rawKey) => {
+          const key = rawKey as T;
+          return (
+            <div key={key} className="count-editor-row">
+              <div className="count-editor-label">
+                <strong>{labels[key]}</strong>
+                {descriptions?.[key] && (
+                  <small className="count-editor-description">{descriptions[key]}</small>
+                )}
+              </div>
+              <div className="count-editor-stepper">
+                <button type="button" className="count-editor-btn" onClick={() => onChange(key, Math.max(0, counts[key] - 1))}>
+                  -
+                </button>
+                <input
+                  className="count-editor-input"
+                  type="number"
+                  min="0"
+                  max="45"
+                  value={counts[key]}
+                  onChange={(event) => onChange(key, Math.max(0, Math.min(45, Number(event.target.value) || 0)))}
+                />
+                <button type="button" className="count-editor-btn" onClick={() => onChange(key, Math.min(45, counts[key] + 1))}>
+                  +
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <style jsx>{`
+        .count-editor-card {
+          padding: 2rem;
+          border-radius: var(--radius-lg);
+        }
+        .count-editor-title {
+          font-size: 1.25rem;
+          color: var(--text-primary);
+          margin-bottom: 1rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid var(--border-light);
+        }
+        .count-editor-help {
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin-bottom: 1rem;
+        }
+        .count-editor-list {
+          display: grid;
+          gap: 0.85rem;
+        }
+        .count-editor-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+          padding: 0.85rem 1rem;
+          border-radius: var(--radius-md);
+          background: rgba(255, 250, 242, 0.88);
+          border: 1px solid var(--border-light);
+        }
+        .count-editor-label {
+          color: var(--text-primary);
+          font-size: 1.02rem;
+          display: grid;
+          gap: 0.3rem;
+          max-width: 72%;
+        }
+        .count-editor-description {
+          color: var(--text-muted);
+          font-size: 0.82rem;
+          line-height: 1.35;
+          font-weight: 500;
+        }
+        .count-editor-stepper {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          background: white;
+          padding: 0.35rem 0.5rem;
+          border-radius: 999px;
+          border: 1px solid rgba(117, 84, 61, 0.38);
+          box-shadow: 0 1px 0 rgba(117, 84, 61, 0.08);
+        }
+        .count-editor-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 999px;
+          border: 1px solid rgba(166, 84, 44, 0.42);
+          background: rgba(255, 242, 230, 0.95);
+          color: #7f3f1f;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.12rem;
+          line-height: 1;
+        }
+        .count-editor-input {
+          width: 62px;
+          height: 34px;
+          text-align: center;
+          border: 1px solid rgba(117, 84, 61, 0.45);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.98);
+          font-weight: 800;
+          color: #3f2516;
+          font-size: 1.15rem;
+          letter-spacing: 0.01em;
+        }
+        .count-editor-input::-webkit-outer-spin-button,
+        .count-editor-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .count-editor-input[type='number'] {
+          -moz-appearance: textfield;
+        }
+        @media (max-width: 768px) {
+          .count-editor-row {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .count-editor-stepper {
+            justify-content: center;
+          }
+        }
+      `}</style>
+    </section>
+  );
+}
 
 export default function NewTestPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
-  
-  // Test parameters
-  const [title, setTitle] = useState('Prueba de Comprensión Lector');
+  const [title, setTitle] = useState('Prueba de Comprension Lectora');
   const [targetGrade, setTargetGrade] = useState('8º Básico');
   const [instructions, setInstructions] = useState('Lee atentamente cada pregunta y responde según lo solicitado.');
+  const [teacherRequest, setTeacherRequest] = useState('');
   const [questionCount, setQuestionCount] = useState(10);
-  
-  // Distribution sliders (must sum to 100 or be proportional)
-  const [cogLocate, setCogLocate] = useState(30);
-  const [cogInterpret, setCogInterpret] = useState(50);
-  const [cogReflect, setCogReflect] = useState(20);
-  
-  const [typeMultiple, setTypeMultiple] = useState(60);
-  const [typeTrueFalse, setTypeTrueFalse] = useState(20);
-  const [typeDev, setTypeDev] = useState(20);
-  const totalCognitive = cogLocate + cogInterpret + cogReflect;
-  const totalTypes = typeMultiple + typeTrueFalse + typeDev;
+  const [cognitiveCounts, setCognitiveCounts] = useState(defaultCognitiveCounts);
+  const [typeCounts, setTypeCounts] = useState(defaultTypeCounts);
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const totalCognitive = totalCount(cognitiveCounts);
+  const totalTypes = totalCount(typeCounts);
+  const isValidDistribution =
+    questionCount > 0 &&
+    questionCount <= 45 &&
+    totalTypes === questionCount &&
+    totalCognitive === questionCount;
+
+  const questionPlan = useMemo(
+    () => interleavePlan(cognitiveCounts, typeCounts),
+    [cognitiveCounts, typeCounts]
+  );
+
+  const handleGenerate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!isValidDistribution) {
+      alert('Los conteos cognitivos y de tipos deben coincidir y sumar entre 1 y 45 preguntas.');
+      return;
+    }
+
     setLoading(true);
     let createdTestId: string | null = null;
 
     try {
-      // 1. Calculate distributions into arrays for the API
-      // E.g. [ 'locate', 'locate', 'interpret', 'interpret' ] proportional to count
-      const calculateArray = (count: number, ratios: Record<string, number>) => {
-        const totalParams = Object.values(ratios).reduce((a, b) => a + b, 0);
-        let result: string[] = [];
-        Object.entries(ratios).forEach(([key, ratio]) => {
-          const amount = Math.round((ratio / totalParams) * count);
-          for(let i=0; i<amount; i++) result.push(key);
-        });
-        
-        // Adjust if rounding caused length mismatch
-        if (result.length > count) result = result.slice(0, count);
-        while (result.length < count) result.push(Object.keys(ratios)[0]);
-        
-        return result;
-      };
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      const cognitiveDist = calculateArray(questionCount, {
-        locate: cogLocate,
-        interpret: cogInterpret,
-        reflect: cogReflect
-      });
-
-      const typesDist = calculateArray(questionCount, {
-        multiple_choice: typeMultiple,
-        true_false: typeTrueFalse,
-        development: typeDev
-      });
-
-      const config = {
-        targetGrade,
-        distribution: {
-          cognitive: cognitiveDist,
-          types: typesDist
-        }
-      };
-
-      // 2. Create Test Record
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('Debes iniciar sesion para generar una evaluacion.');
       }
+
+      const generationConfig = {
+        targetGrade,
+        teacherRequest,
+        questionPlan,
+        cognitiveCounts,
+        typeCounts,
+      };
+
       const { data: test, error: testErr } = await supabase
         .from('tests')
         .insert({
@@ -83,7 +323,9 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           title,
           target_grade: targetGrade,
           instructions,
-          status: 'draft'
+          status: 'draft',
+          generation_config: generationConfig,
+          total_score: 0,
         })
         .select()
         .single();
@@ -92,51 +334,49 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
       if (!test) throw new Error('No se pudo crear el registro de la evaluacion.');
       createdTestId = test.id;
 
-      // 3. Call Generation API
       const res = await fetch('/api/tests/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookId: params.id,
-          count: questionCount,
-          config
-        })
+          config: generationConfig,
+        }),
       });
 
       const generationData = await res.json();
       if (!res.ok) throw new Error(generationData.error);
 
-      // 4. Link questions to test via test_items
       const questions = generationData.questions;
       let totalPoints = 0;
-      
-      const testItems = questions.map((q: any, i: number) => {
-        const points = q.q_type === 'development' ? 3 : 1;
+
+      const testItems = questions.map((question: any, index: number) => {
+        const points =
+          question.q_type === 'development' || question.q_type === 'creative_writing' ? 3 : 1;
         totalPoints += points;
         return {
           test_id: test.id,
-          question_id: q.id,
-          item_order: i + 1,
-          points: points
+          question_id: question.id,
+          item_order: index + 1,
+          points,
         };
       });
 
       const { error: testItemsError } = await supabase.from('test_items').insert(testItems);
       if (testItemsError) throw testItemsError;
-      
-      // Update total score
-      const { error: scoreError } = await supabase.from('tests').update({ total_score: totalPoints }).eq('id', test.id);
+
+      const { error: scoreError } = await supabase
+        .from('tests')
+        .update({ total_score: totalPoints })
+        .eq('id', test.id);
       if (scoreError) throw scoreError;
 
-      // 5. Redirect to review page
       router.push(`/books/${params.id}/test/${test.id}`);
-
     } catch (error) {
       if (createdTestId) {
         await supabase.from('tests').delete().eq('id', createdTestId);
       }
       console.error('Error generating test:', error);
-      alert('Error al generar la prueba. Por favor intenta nuevamente.');
+      alert(error instanceof Error ? error.message : 'Error al generar la prueba.');
       setLoading(false);
     }
   };
@@ -144,412 +384,264 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
   return (
     <div className="test-config animate-fade-in">
       <div className="page-header mb-8">
-        <Link href={`/books/${params.id}`} className="back-link mb-2">← Volver al Libro</Link>
-        <h1 className="page-title">Configurar Evaluación</h1>
-        <p className="page-subtitle">Parametriza la prueba antes de que la Inteligencia Artificial genere las preguntas.</p>
+        <Link href={`/books/${params.id}`} className="back-link mb-2">
+          ← Volver al Libro
+        </Link>
+        <h1 className="page-title">Diseñar Evaluacion</h1>
+        <p className="page-subtitle">
+          Arma la prueba con cantidades exactas, nuevos formatos y una instruccion docente clara para la IA.
+        </p>
       </div>
 
       <form onSubmit={handleGenerate} className="config-grid">
-        
-        {/* Left Column - General Settings */}
-        <div className="config-col">
-          <section className="glass-panel section-card">
-            <h2 className="section-title">Datos Generales</h2>
-            
-            <div className="form-group">
-              <label>Título de la Prueba</label>
-              <input 
-                type="text" 
-                className="input" 
-                value={title} 
-                onChange={e => setTitle(e.target.value)} 
-                required 
-              />
-              <small className="help-text">Será el nombre visible de la evaluación para ti, para el estudiante y en las descargas Word.</small>
-            </div>
-            
-            <div className="form-group mt-4">
-              <label>Curso / Nivel Educativo</label>
-              <select 
-                className="input" 
-                value={targetGrade} 
-                onChange={e => setTargetGrade(e.target.value)} 
-                required 
-              >
-                <option value="" disabled>Selecciona un nivel</option>
-                <option value="1º Básico">1º Básico</option>
-                <option value="2º Básico">2º Básico</option>
-                <option value="3º Básico">3º Básico</option>
-                <option value="4º Básico">4º Básico</option>
-                <option value="5º Básico">5º Básico</option>
-                <option value="6º Básico">6º Básico</option>
-                <option value="7º Básico">7º Básico</option>
-                <option value="8º Básico">8º Básico</option>
-                <option value="1º Medio">1º Medio</option>
-                <option value="2º Medio">2º Medio</option>
-                <option value="3º Medio">3º Medio</option>
-                <option value="4º Medio">4º Medio</option>
-                <option value="Educación Superior">Educación Superior</option>
-              </select>
-              <small className="help-text">La IA ajustará el vocabulario a este nivel.</small>
-            </div>
+        <section className="glass-panel section-card">
+          <h2 className="section-title">Datos Generales</h2>
 
-            <div className="form-group mt-4">
-              <label>Instrucciones</label>
-              <textarea 
-                className="input" 
-                rows={3}
-                value={instructions} 
-                onChange={e => setInstructions(e.target.value)} 
-              />
-              <small className="help-text">Aquí defines el tono esperado de respuesta: breve, fundamentada, personal o más desarrollada.</small>
-            </div>
-
-            <div className="form-group mt-4">
-              <label>Cantidad de Preguntas Totales</label>
-              <div className="number-input-wrap">
-                <input 
-                  type="range" 
-                  min="5" 
-                  max="30" 
-                  value={questionCount} 
-                  onChange={e => setQuestionCount(parseInt(e.target.value))} 
-                  className="range-slider accent-slider"
-                />
-                <span className="number-display">{questionCount}</span>
-              </div>
-              <div className="range-hint">
-                <span>Más breve y ágil</span>
-                <span>Más completa y exigente</span>
-              </div>
-              <small className="help-text">Menos preguntas hace la prueba más rápida; más preguntas amplía la cobertura de habilidades y contenidos.</small>
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column - Distributions */}
-        <div className="config-col">
-          <section className="glass-panel section-card h-full">
-            <h2 className="section-title">Distribución Pedagógica</h2>
-            
-            <div className="distribution-block">
-              <h3 className="sub-heading">Habilidades Cognitivas</h3>
-              <p className="group-help">
-                Ajusta la intensidad de pensamiento que tendrá la evaluación. A menor porcentaje, menos preguntas de ese nivel; a mayor porcentaje, más protagonismo tendrá esa exigencia cognitiva.
-              </p>
-              <div className="distribution-summary">
-                Total configurado: <strong>{totalCognitive}%</strong>
-              </div>
-              
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Localizar Información (%)</span>
-                  <span>{cogLocate}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={cogLocate} onChange={e => setCogLocate(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos foco literal</span>
-                  <span>Más foco literal</span>
-                </div>
-                <small className="help-text">Recordar hechos, personajes y datos explícitos.</small>
-              </div>
-
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Interpretar (%)</span>
-                  <span>{cogInterpret}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={cogInterpret} onChange={e => setCogInterpret(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos inferencia</span>
-                  <span>Más inferencia</span>
-                </div>
-                <small className="help-text">Inferir intenciones, relaciones y motivos.</small>
-              </div>
-
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Reflexionar (%)</span>
-                  <span>{cogReflect}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={cogReflect} onChange={e => setCogReflect(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos juicio crítico</span>
-                  <span>Más juicio crítico</span>
-                </div>
-                <small className="help-text">Evaluar, conectar y emitir juicios críticos.</small>
-              </div>
-            </div>
-
-            <hr className="divider" />
-
-            <div className="distribution-block">
-              <h3 className="sub-heading">Tipos de Preguntas</h3>
-              <p className="group-help">
-                Decide qué formato predominará en la prueba. A mayor porcentaje, más veces aparecerá ese tipo de pregunta dentro del total generado.
-              </p>
-              <div className="distribution-summary">
-                Total configurado: <strong>{totalTypes}%</strong>
-              </div>
-              
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Selección Múltiple (%)</span>
-                  <span>{typeMultiple}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={typeMultiple} onChange={e => setTypeMultiple(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos estructura cerrada</span>
-                  <span>Más estructura cerrada</span>
-                </div>
-                <small className="help-text">Ideal para aplicación ágil, corrección rápida y cobertura amplia de contenidos.</small>
-              </div>
-
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Verdadero y Falso (%)</span>
-                  <span>{typeTrueFalse}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={typeTrueFalse} onChange={e => setTypeTrueFalse(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos verificación puntual</span>
-                  <span>Más verificación puntual</span>
-                </div>
-                <small className="help-text">Sirve para comprobar comprensión específica de manera simple y directa.</small>
-              </div>
-
-              <div className="slider-group">
-                <div className="slider-label">
-                  <span>Desarrollo (%)</span>
-                  <span>{typeDev}%</span>
-                </div>
-                <input type="range" min="0" max="100" value={typeDev} onChange={e => setTypeDev(parseInt(e.target.value))} className="range-slider" />
-                <div className="range-hint">
-                  <span>Menos elaboración escrita</span>
-                  <span>Más elaboración escrita</span>
-                </div>
-                <small className="help-text">Aumenta la argumentación, la profundidad y la evidencia del pensamiento del estudiante.</small>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* Floating Action */}
-        <div className="action-bar glass-panel">
-          <div className="action-info">
-            La IA leerá sus análisis y generará <strong>{questionCount} preguntas</strong> únicas.
+          <div className="form-group">
+            <label>Titulo de la evaluacion</label>
+            <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} required />
           </div>
-          <button type="submit" className="btn btn-primary btn-lg btn-glow" disabled={loading}>
-            {loading ? 'Generando con IA...' : 'Generar Prueba'}
+
+          <div className="form-group">
+            <label>Curso / nivel educativo</label>
+            <select className="input" value={targetGrade} onChange={(event) => setTargetGrade(event.target.value)} required>
+              <option value="1º Básico">1º Básico</option>
+              <option value="2º Básico">2º Básico</option>
+              <option value="3º Básico">3º Básico</option>
+              <option value="4º Básico">4º Básico</option>
+              <option value="5º Básico">5º Básico</option>
+              <option value="6º Básico">6º Básico</option>
+              <option value="7º Básico">7º Básico</option>
+              <option value="8º Básico">8º Básico</option>
+              <option value="1º Medio">1º Medio</option>
+              <option value="2º Medio">2º Medio</option>
+              <option value="3º Medio">3º Medio</option>
+              <option value="4º Medio">4º Medio</option>
+              <option value="Educación Superior">Educación Superior</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Instrucciones para estudiantes</label>
+            <textarea className="input" rows={3} value={instructions} onChange={(event) => setInstructions(event.target.value)} />
+          </div>
+
+          <div className="form-group">
+            <label>Encargo docente para la IA</label>
+            <textarea
+              className="input"
+              rows={4}
+              value={teacherRequest}
+              onChange={(event) => setTeacherRequest(event.target.value)}
+              placeholder="Ej: evita preguntas repetidas sobre el protagonista y agrega foco en conflicto, capitulos finales y simbolismo."
+            />
+            <small className="help-text">
+              Aqui puedes orientar la prueba por tema, profundidad, estilo o enfoque pedagógico.
+            </small>
+          </div>
+
+          <div className={`summary-card ${isValidDistribution ? 'ok' : 'warn'}`}>
+            <div className="summary-metric">
+              <span>Preguntas totales</span>
+              <strong>{questionCount}</strong>
+            </div>
+            <div className="summary-metric">
+              <span>Habilidades configuradas</span>
+              <strong>{totalCognitive}</strong>
+            </div>
+            <div className="summary-metric">
+              <span>Estado</span>
+              <strong>{isValidDistribution ? 'Lista para generar' : 'Ajusta los conteos'}</strong>
+            </div>
+          </div>
+        </section>
+
+        <div className="stack-col">
+          <section className="glass-panel section-card total-questions-card">
+            <h2 className="section-title">Cantidad total de preguntas</h2>
+            <div className="total-questions-row">
+              <input
+                className="input total-questions-input"
+                type="number"
+                min="1"
+                max="45"
+                value={questionCount}
+                onChange={(event) => {
+                  const nextTotal = Math.max(1, Math.min(45, Number(event.target.value) || 1));
+                  setQuestionCount(nextTotal);
+                  setCognitiveCounts((current) => clampCountsToTotal(current, nextTotal));
+                  setTypeCounts((current) => clampCountsToTotal(current, nextTotal));
+                }}
+              />
+              <span className="total-questions-pill">Max 45</span>
+            </div>
+            <small className="help-text">
+              Las habilidades cognitivas y los tipos de pregunta no pueden superar este total.
+            </small>
+          </section>
+
+          <CountEditor
+            title="Habilidades Cognitivas"
+            description="Define cuantas preguntas trabajaran localizacion, interpretacion y reflexion."
+            counts={cognitiveCounts}
+            labels={cognitiveLabels}
+            descriptions={cognitiveDescriptions}
+            onChange={(key, value) =>
+              setCognitiveCounts((current) => updateCountsWithLimit(current, key, value, questionCount))
+            }
+          />
+
+          <CountEditor
+            title="Tipos de Pregunta"
+            description="Distribuye la prueba en formatos concretos. La suma total aqui define cuantas preguntas tendrá la evaluacion."
+            counts={typeCounts}
+            labels={typeLabels}
+            onChange={(key, value) =>
+              setTypeCounts((current) => updateCountsWithLimit(current, key, value, questionCount))
+            }
+          />
+        </div>
+
+        <div className="action-bar glass-panel">
+          <div className="action-copy">
+            La IA generará <strong>{questionCount}</strong> preguntas variadas, evitando repetir el mismo tema cuando sea posible.
+          </div>
+          <button type="submit" className="btn btn-primary btn-lg btn-glow" disabled={loading || !isValidDistribution}>
+            {loading ? 'Generando evaluacion...' : 'Generar evaluacion'}
           </button>
         </div>
       </form>
 
-      {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay">
           <div className="loading-modal glass-panel text-center">
-            <div className="spinner">✨</div>
-            <h2 className="text-xl font-bold mt-4 mb-2 text-white">Generando Evaluación</h2>
-            <p className="text-muted">LecturAI está diseñando preguntas basadas en pedagogía crítica. Esto tomará unos 20-40 segundos.</p>
-            
-            <div className="loading-steps mt-6 text-left">
-              <div className="step active">Recuperando extractos del texto...</div>
-              <div className="step active">Aplicando modelos cognitivos...</div>
-              <div className="step">Escribiendo distractores plausibles...</div>
-              <div className="step">Armando la pauta de corrección...</div>
-            </div>
+            <div className="spinner">IA</div>
+            <h2 className="loading-title">Construyendo la evaluacion</h2>
+            <p className="loading-copy">Estamos equilibrando temas, tipos de pregunta y nivel cognitivo para que la prueba salga más variada.</p>
           </div>
         </div>
       )}
 
-      <style>{`
+      <style jsx>{`
         .config-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 2rem;
-          padding-bottom: 8rem; /* space for fixed action bar */
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+          gap: 1.5rem;
+          padding-bottom: 2rem;
         }
-        
-        @media (max-width: 900px) {
-          .config-grid { grid-template-columns: 1fr; }
+        .stack-col {
+          display: grid;
+          gap: 1rem;
         }
-
-        .section-card { padding: 2rem; border-radius: var(--radius-lg); }
-        .h-full { height: 100%; }
-        .mb-2 { margin-bottom: 0.5rem; }
-        .mb-8 { margin-bottom: 2rem; }
-        .mt-4 { margin-top: 1rem; }
-        .mt-6 { margin-top: 1.5rem; }
-        .font-bold { font-weight: 700; }
-        .text-white { color: var(--text-primary); }
-        
+        .total-questions-card {
+          position: sticky;
+          top: 1rem;
+          z-index: 4;
+        }
+        .total-questions-row {
+          display: flex;
+          align-items: center;
+          gap: 0.8rem;
+          margin-bottom: 0.55rem;
+        }
+        .total-questions-input {
+          max-width: 140px;
+          font-size: 1.15rem;
+          font-weight: 800;
+          text-align: center;
+        }
+        .total-questions-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          height: 2.2rem;
+          padding: 0 0.75rem;
+          border-radius: 999px;
+          border: 1px solid rgba(117, 84, 61, 0.3);
+          background: rgba(255, 250, 242, 0.9);
+          color: #7f3f1f;
+          font-size: 0.82rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+        .section-card {
+          padding: 2rem;
+          border-radius: var(--radius-lg);
+        }
         .section-title {
           font-size: 1.25rem;
           color: var(--text-primary);
-          margin-bottom: 1.5rem;
+          margin-bottom: 1rem;
           padding-bottom: 0.75rem;
           border-bottom: 1px solid var(--border-light);
         }
-
-        .sub-heading {
-          font-size: 1.05rem;
+        .section-help {
+          color: var(--text-secondary);
+          line-height: 1.6;
+          margin-bottom: 1rem;
+        }
+        .form-group {
+          display: grid;
+          gap: 0.45rem;
+          margin-bottom: 1rem;
+        }
+        .form-group label {
           color: var(--text-primary);
-          margin-bottom: 0.65rem;
           font-weight: 600;
         }
-
-        .group-help {
-          color: var(--text-secondary);
-          line-height: 1.65;
-          font-size: 0.92rem;
-          margin-bottom: 0.85rem;
-        }
-
-        .distribution-summary {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
-          padding: 0.45rem 0.7rem;
-          margin-bottom: 1rem;
-          border-radius: 999px;
-          background: rgba(255, 244, 232, 0.82);
-          color: #8c4f2a;
-          font-size: 0.84rem;
-          font-weight: 700;
-          border: 1px solid rgba(225, 109, 61, 0.18);
-        }
-
-        .form-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          color: var(--text-primary);
-          font-weight: 500;
-          font-size: 0.95rem;
-        }
-
         .help-text {
-          display: block;
-          margin-top: 0.4rem;
           color: var(--text-muted);
-          font-size: 0.8rem;
+          font-size: 0.82rem;
         }
-
-        .number-input-wrap {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
+        .summary-card {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.8rem;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          margin-top: 1rem;
         }
-
-        .number-display {
-          background: var(--bg-tertiary);
-          padding: 0.5rem 1rem;
-          border-radius: var(--radius-sm);
-          border: 1px solid var(--border-light);
-          font-weight: 700;
+        .summary-card.ok {
+          background: rgba(47, 153, 103, 0.08);
+          border: 1px solid rgba(47, 153, 103, 0.18);
+        }
+        .summary-card.warn {
+          background: rgba(217, 102, 52, 0.08);
+          border: 1px solid rgba(217, 102, 52, 0.18);
+        }
+        .summary-metric {
+          display: grid;
+          gap: 0.2rem;
+        }
+        .summary-metric span {
+          color: var(--text-muted);
+          font-size: 0.82rem;
+        }
+        .summary-metric strong {
           color: var(--text-primary);
-          min-width: 60px;
-          text-align: center;
         }
-
-        .distribution-block { margin-bottom: 1rem; }
-        
-        .divider {
-          border: none;
-          height: 1px;
-          background: var(--border-light);
-          margin: 2rem 0;
-        }
-
-        .slider-group { margin-bottom: 1.25rem; }
-        
-        .slider-label {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-          margin-bottom: 0.5rem;
-        }
-
-        .range-hint {
-          display: flex;
-          justify-content: space-between;
-          gap: 1rem;
-          margin-top: 0.45rem;
-          color: var(--text-muted);
-          font-size: 0.76rem;
-          line-height: 1.4;
-        }
-
-        .range-hint span:last-child {
-          text-align: right;
-        }
-
-        /* Custom Range Slider */
-        .range-slider {
-          -webkit-appearance: none;
-          width: 100%;
-          height: 6px;
-          background: var(--bg-tertiary);
-          border-radius: 3px;
-          outline: none;
-        }
-
-        .range-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          background: var(--text-secondary);
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        
-        .range-slider.accent-slider::-webkit-slider-thumb {
-          background: var(--accent-primary);
-        }
-
-        /* Action Bar fixed at bottom */
         .action-bar {
-          position: fixed;
-          bottom: 2rem;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 90%;
-          max-width: 800px;
-          padding: 1.25rem 2rem;
-          border-radius: 100px;
+          position: sticky;
+          bottom: 1rem;
+          width: 100%;
+          padding: 1rem 1.5rem;
+          border-radius: 24px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          z-index: 20;
-          background: linear-gradient(180deg, rgba(255, 250, 242, 0.94) 0%, rgba(255, 240, 220, 0.96) 100%);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          gap: 1rem;
+          z-index: 5;
+          margin-top: 1.5rem;
+          background: linear-gradient(180deg, rgba(255, 250, 242, 0.96) 0%, rgba(255, 240, 220, 0.98) 100%);
           border: 1px solid rgba(180, 110, 68, 0.22);
-          box-shadow: 0 18px 36px rgba(160, 101, 58, 0.16);
+          box-shadow: 0 14px 30px rgba(160, 101, 58, 0.14);
         }
-
-        @media (max-width: 768px) {
-          .action-bar {
-            flex-direction: column;
-            gap: 1rem;
-            border-radius: var(--radius-lg);
-            text-align: center;
-          }
-        }
-
-        .action-info {
+        .action-copy {
           color: var(--text-secondary);
-          font-size: 0.95rem;
         }
-
         .btn-glow {
           box-shadow: 0 12px 26px rgba(217, 102, 52, 0.28);
         }
-
-        /* Loading Overlay */
         .loading-overlay {
           position: fixed;
           inset: 0;
@@ -560,56 +652,55 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           align-items: center;
           justify-content: center;
         }
-
         .loading-modal {
           max-width: 400px;
           width: 90%;
-          padding: 2.5rem;
-          border: 1px solid rgba(180, 110, 68, 0.28);
-          box-shadow: 0 18px 40px rgba(160, 101, 58, 0.2);
+          padding: 2rem;
+          text-align: center;
         }
-
         .spinner {
-          font-size: 3rem;
-          display: inline-block;
-          animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
-        .loading-steps {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .step {
-          font-size: 0.85rem;
-          color: var(--text-muted);
+          width: 72px;
+          height: 72px;
+          margin: 0 auto 1rem;
+          border-radius: 50%;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          justify-content: center;
+          font-weight: 700;
+          color: white;
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          animation: pulse 1.5s infinite;
         }
-
-        .step::before {
-          content: '';
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--text-muted);
+        .loading-title {
+          margin: 0 0 0.5rem;
+          color: var(--text-primary);
         }
-
-        .step.active {
-          color: var(--accent-primary);
+        .loading-copy {
+          color: var(--text-secondary);
+          line-height: 1.6;
         }
-
-        .step.active::before {
-          background: var(--accent-primary);
-          box-shadow: 0 0 8px var(--accent-primary);
+        @keyframes pulse {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.08); opacity: 0.78; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @media (max-width: 960px) {
+          .config-grid {
+            grid-template-columns: 1fr;
+          }
+          .total-questions-card {
+            position: static;
+          }
+        }
+        @media (max-width: 768px) {
+          .action-bar,
+          .summary-card {
+            grid-template-columns: 1fr;
+          }
+          .action-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
         }
       `}</style>
     </div>

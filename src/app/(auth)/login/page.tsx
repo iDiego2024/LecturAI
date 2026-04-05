@@ -23,7 +23,7 @@ export default function LoginPage() {
         setPassword(DEMO_PASSWORD);
       }
       if (params.get('confirmed') === '1') {
-        setInfoMessage('Tu correo fue confirmado. Ya puedes iniciar sesion en LecturAI.');
+        setInfoMessage('Tu correo fue confirmado. Ya puedes iniciar sesion en Comprendia.');
       }
     }
   }, []);

@@ -17,7 +17,7 @@ export default function Home() {
           </h1>
           
           <p className="hero-description">
-            LecturAI analiza la obra completa, reconoce personajes, conflictos y temas clave, y los transforma en evaluaciones con sentido pedagógico. Más criterio para evaluar, menos tiempo perdido armando todo desde cero.
+            Comprendia analiza la obra completa, reconoce personajes, conflictos y temas clave, y los transforma en evaluaciones con sentido pedagógico. Más criterio para evaluar, menos tiempo perdido armando todo desde cero.
           </p>
           
           <div className="hero-actions">

@@ -25,7 +25,9 @@ function formatSpaceType(type?: string) {
 
 export default async function BookSummaryPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lectur-ai.vercel.app';
 
   if (!user) {
@@ -44,6 +46,7 @@ export default async function BookSummaryPage({ params }: { params: { id: string
   }
 
   const summaryText = book.summary || 'Todavia no hay un resumen disponible para este libro.';
+
   const { data: entities } = await supabase
     .from('book_entities')
     .select('*')
@@ -56,9 +59,27 @@ export default async function BookSummaryPage({ params }: { params: { id: string
     .eq('book_id', book.id)
     .order('theme_name', { ascending: true });
 
+  const { data: chapters } = await supabase
+    .from('book_chapters')
+    .select('*')
+    .eq('book_id', book.id)
+    .order('chapter_number', { ascending: true });
+
+  const { data: relationships } = await supabase
+    .from('book_character_relationships')
+    .select('*')
+    .eq('book_id', book.id)
+    .order('importance_score', { ascending: false });
+
   const allEntities = (entities as any[]) || [];
   const characters = allEntities.filter((entity) => entity.entity_type === 'character');
-  const events = allEntities.filter((entity) => entity.entity_type === 'event');
+  const events = allEntities
+    .filter((entity) => entity.entity_type === 'event')
+    .sort(
+      (a, b) =>
+        (((a.metadata as any)?.chronological_order as number | undefined) || 9999) -
+        (((b.metadata as any)?.chronological_order as number | undefined) || 9999)
+    );
   const conflicts = allEntities.filter((entity) => entity.entity_type === 'conflict');
   const spaces = allEntities.filter((entity) => entity.entity_type === 'space');
   const processedExcerpt = book.raw_text?.trim();
@@ -67,9 +88,14 @@ export default async function BookSummaryPage({ params }: { params: { id: string
     <div className="summary-page animate-fade-in">
       <div className="summary-header">
         <div>
-          <Link href={`/books/${params.id}`} className="back-link">← Volver al libro</Link>
+          <Link href={`/books/${params.id}`} className="back-link">
+            ← Volver al libro
+          </Link>
           <h1 className="page-title">Resumen completo</h1>
-          <p className="page-subtitle">{book.title}{book.author ? ` • ${book.author}` : ''}</p>
+          <p className="page-subtitle">
+            {book.title}
+            {book.author ? ` • ${book.author}` : ''}
+          </p>
         </div>
         <div className="summary-actions">
           <PrintPdfButton label="Guardar resumen como PDF" />
@@ -109,6 +135,14 @@ export default async function BookSummaryPage({ params }: { params: { id: string
               <strong>{events.length}</strong>
             </div>
             <div className="stat-item">
+              <span className="stat-label">Capitulos resumidos</span>
+              <strong>{(chapters as any[])?.length || 0}</strong>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Interacciones entre personajes</span>
+              <strong>{(relationships as any[])?.length || 0}</strong>
+            </div>
+            <div className="stat-item">
               <span className="stat-label">Conflictos identificados</span>
               <strong>{conflicts.length}</strong>
             </div>
@@ -127,45 +161,159 @@ export default async function BookSummaryPage({ params }: { params: { id: string
       <section className="analysis-section glass-panel">
         <div className="section-head">
           <span className="section-kicker">Analisis narrativo</span>
-          <h2 className="section-title">Personajes principales</h2>
+          <h2 className="section-title">Personajes detectados</h2>
         </div>
         <div className="analysis-grid">
-          {characters.length > 0 ? characters.map((char) => (
-            <article key={char.id} className="analysis-card">
-              <div className="card-topline">
-                <h3>{char.name}</h3>
-                <span className="entity-badge">{formatRole((char.metadata as any)?.role)}</span>
-              </div>
-              <p>{char.description}</p>
-              {Array.isArray((char.metadata as any)?.traits) && (char.metadata as any).traits.length > 0 && (
-                <div className="tag-list">
-                  {((char.metadata as any).traits as string[]).map((trait, index) => (
-                    <span key={index} className="tag-item">{trait}</span>
-                  ))}
+          {characters.length > 0 ? (
+            characters.map((char) => (
+              <article key={char.id} className="analysis-card">
+                <div className="card-topline">
+                  <h3>{char.name}</h3>
+                  <span className="entity-badge">{formatRole((char.metadata as any)?.role)}</span>
                 </div>
-              )}
-            </article>
-          )) : <p className="empty-state">Todavia no hay personajes registrados para esta obra.</p>}
+                <p>{char.description}</p>
+                {(char.metadata as any)?.first_appearance && (
+                  <p className="support-text">
+                    <strong>Primera aparicion:</strong> {(char.metadata as any).first_appearance}
+                  </p>
+                )}
+                {Array.isArray((char.metadata as any)?.aliases) &&
+                  (char.metadata as any).aliases.length > 0 && (
+                    <p className="support-text">
+                      <strong>Alias:</strong>{' '}
+                      {((char.metadata as any).aliases as string[]).join(', ')}
+                    </p>
+                  )}
+                {Array.isArray((char.metadata as any)?.traits) &&
+                  (char.metadata as any).traits.length > 0 && (
+                    <div className="tag-list">
+                      {((char.metadata as any).traits as string[]).map((trait, index) => (
+                        <span key={index} className="tag-item">
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                {Array.isArray((char.metadata as any)?.chapter_presence) &&
+                  (char.metadata as any).chapter_presence.length > 0 && (
+                    <p className="support-text">
+                      <strong>Presencia:</strong> capitulos{' '}
+                      {((char.metadata as any).chapter_presence as number[]).join(', ')}
+                    </p>
+                  )}
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Todavia no hay personajes registrados para esta obra.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="analysis-section glass-panel">
+        <div className="section-head">
+          <span className="section-kicker">Estructura</span>
+          <h2 className="section-title">Resumen por capitulos</h2>
+        </div>
+        <div className="stack-list">
+          {(chapters as any[])?.length > 0 ? (
+            (chapters as any[]).map((chapter: any) => (
+              <article key={chapter.id} className="analysis-card">
+                <div className="card-topline">
+                  <h3>
+                    Capitulo {chapter.chapter_number}: {chapter.title}
+                  </h3>
+                  <span className="entity-badge">
+                    {chapter.start_page || chapter.end_page
+                      ? `pag. ${chapter.start_page || '?'}-${chapter.end_page || chapter.start_page || '?'}`
+                      : 'sin pagina'}
+                  </span>
+                </div>
+                <p>{chapter.summary}</p>
+                {Array.isArray(chapter.key_characters) && chapter.key_characters.length > 0 && (
+                  <p className="support-text">
+                    <strong>Personajes clave:</strong> {chapter.key_characters.join(', ')}
+                  </p>
+                )}
+                {Array.isArray(chapter.key_events) && chapter.key_events.length > 0 && (
+                  <p className="support-text">
+                    <strong>Eventos clave:</strong> {chapter.key_events.join(' · ')}
+                  </p>
+                )}
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Todavia no hay capitulos resumidos para esta obra.</p>
+          )}
         </div>
       </section>
 
       <section className="analysis-section glass-panel">
         <div className="section-head">
           <span className="section-kicker">Trama</span>
-          <h2 className="section-title">Acontecimientos principales</h2>
+          <h2 className="section-title">Acontecimientos en orden cronologico</h2>
         </div>
         <div className="timeline-list">
-          {events.length > 0 ? events.map((event) => (
-            <article key={event.id} className="timeline-item">
-              <div className="timeline-order">
-                {(event.metadata as any)?.chronological_order || '•'}
-              </div>
-              <div className="timeline-content">
-                <h3>{event.name}</h3>
-                <p>{event.description}</p>
-              </div>
-            </article>
-          )) : <p className="empty-state">Todavia no hay acontecimientos registrados para esta obra.</p>}
+          {events.length > 0 ? (
+            events.map((event) => (
+              <article key={event.id} className="timeline-item">
+                <div className="timeline-order">
+                  {(event.metadata as any)?.chronological_order || '•'}
+                </div>
+                <div className="timeline-content">
+                  <h3>{event.name}</h3>
+                  <p>{event.description}</p>
+                  {(event.metadata as any)?.chapter_number && (
+                    <p className="support-text">
+                      <strong>Capitulo:</strong> {(event.metadata as any).chapter_number}
+                    </p>
+                  )}
+                  {Array.isArray((event.metadata as any)?.involved_characters) &&
+                    (event.metadata as any).involved_characters.length > 0 && (
+                      <p className="support-text">
+                        <strong>Participan:</strong>{' '}
+                        {((event.metadata as any).involved_characters as string[]).join(', ')}
+                      </p>
+                    )}
+                  {(event.metadata as any)?.evidence && (
+                    <p className="support-text">
+                      <strong>Ubicacion narrativa:</strong> {(event.metadata as any).evidence}
+                    </p>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Todavia no hay acontecimientos registrados para esta obra.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="analysis-section glass-panel">
+        <div className="section-head">
+          <span className="section-kicker">Vinculos</span>
+          <h2 className="section-title">Interacciones entre personajes</h2>
+        </div>
+        <div className="analysis-grid">
+          {(relationships as any[])?.length > 0 ? (
+            (relationships as any[]).map((relationship: any) => (
+              <article key={relationship.id} className="analysis-card">
+                <div className="card-topline">
+                  <h3>
+                    {relationship.source_character} ↔ {relationship.target_character}
+                  </h3>
+                  <span className="entity-badge">{relationship.relationship_type || 'relacion'}</span>
+                </div>
+                <p>{relationship.description}</p>
+                {relationship.evolution && (
+                  <p className="support-text">
+                    <strong>Evolucion:</strong> {relationship.evolution}
+                  </p>
+                )}
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Todavia no hay interacciones registradas para esta obra.</p>
+          )}
         </div>
       </section>
 
@@ -176,16 +324,32 @@ export default async function BookSummaryPage({ params }: { params: { id: string
             <h2 className="section-title">Nudos narrativos</h2>
           </div>
           <div className="stack-list">
-            {conflicts.length > 0 ? conflicts.map((conflict) => (
-              <article key={conflict.id} className="analysis-card">
-                <div className="card-topline">
-                  <h3>{conflict.name}</h3>
-                  <span className="entity-badge">{(conflict.metadata as any)?.type === 'main' ? 'principal' : 'secundario'}</span>
-                </div>
-                <p>{conflict.description}</p>
-                <p className="support-text"><strong>Resolucion:</strong> {(conflict.metadata as any)?.resolution || 'No especificada.'}</p>
-              </article>
-            )) : <p className="empty-state">Todavia no hay conflictos registrados para esta obra.</p>}
+            {conflicts.length > 0 ? (
+              conflicts.map((conflict) => (
+                <article key={conflict.id} className="analysis-card">
+                  <div className="card-topline">
+                    <h3>{conflict.name}</h3>
+                    <span className="entity-badge">
+                      {(conflict.metadata as any)?.type === 'main' ? 'principal' : 'secundario'}
+                    </span>
+                  </div>
+                  <p>{conflict.description}</p>
+                  {Array.isArray((conflict.metadata as any)?.involved_characters) &&
+                    (conflict.metadata as any).involved_characters.length > 0 && (
+                      <p className="support-text">
+                        <strong>Involucrados:</strong>{' '}
+                        {((conflict.metadata as any).involved_characters as string[]).join(', ')}
+                      </p>
+                    )}
+                  <p className="support-text">
+                    <strong>Resolucion:</strong>{' '}
+                    {(conflict.metadata as any)?.resolution || 'No especificada.'}
+                  </p>
+                </article>
+              ))
+            ) : (
+              <p className="empty-state">Todavia no hay conflictos registrados para esta obra.</p>
+            )}
           </div>
         </article>
 
@@ -195,15 +359,28 @@ export default async function BookSummaryPage({ params }: { params: { id: string
             <h2 className="section-title">Espacios relevantes</h2>
           </div>
           <div className="stack-list">
-            {spaces.length > 0 ? spaces.map((space) => (
-              <article key={space.id} className="analysis-card">
-                <div className="card-topline">
-                  <h3>{space.name}</h3>
-                  <span className="entity-badge">{formatSpaceType((space.metadata as any)?.type)}</span>
-                </div>
-                <p>{space.description}</p>
-              </article>
-            )) : <p className="empty-state">Todavia no hay espacios registrados para esta obra.</p>}
+            {spaces.length > 0 ? (
+              spaces.map((space) => (
+                <article key={space.id} className="analysis-card">
+                  <div className="card-topline">
+                    <h3>{space.name}</h3>
+                    <span className="entity-badge">
+                      {formatSpaceType((space.metadata as any)?.type)}
+                    </span>
+                  </div>
+                  <p>{space.description}</p>
+                  {Array.isArray((space.metadata as any)?.related_chapters) &&
+                    (space.metadata as any).related_chapters.length > 0 && (
+                      <p className="support-text">
+                        <strong>Capitulos:</strong>{' '}
+                        {((space.metadata as any).related_chapters as number[]).join(', ')}
+                      </p>
+                    )}
+                </article>
+              ))
+            ) : (
+              <p className="empty-state">Todavia no hay espacios registrados para esta obra.</p>
+            )}
           </div>
         </article>
       </section>
@@ -214,14 +391,32 @@ export default async function BookSummaryPage({ params }: { params: { id: string
           <h2 className="section-title">Tematicas principales</h2>
         </div>
         <div className="analysis-grid">
-          {(themes as any[])?.length ? (themes as any[]).map((theme: any) => (
-            <article key={theme.id} className="analysis-card">
-              <div className="card-topline">
-                <h3>{theme.theme_name}</h3>
-              </div>
-              <p>{theme.description}</p>
-            </article>
-          )) : <p className="empty-state">Todavia no hay tematicas registradas para esta obra.</p>}
+          {(themes as any[])?.length ? (
+            (themes as any[]).map((theme: any) => (
+              <article key={theme.id} className="analysis-card">
+                <div className="card-topline">
+                  <h3>{theme.theme_name}</h3>
+                </div>
+                <p>{theme.description}</p>
+                {Array.isArray((theme.evidence as any)?.related_chapters) &&
+                  (theme.evidence as any).related_chapters.length > 0 && (
+                    <p className="support-text">
+                      <strong>Capitulos asociados:</strong>{' '}
+                      {((theme.evidence as any).related_chapters as number[]).join(', ')}
+                    </p>
+                  )}
+                {Array.isArray((theme.evidence as any)?.evidence) &&
+                  (theme.evidence as any).evidence.length > 0 && (
+                    <p className="support-text">
+                      <strong>Evidencias:</strong>{' '}
+                      {((theme.evidence as any).evidence as string[]).join(' · ')}
+                    </p>
+                  )}
+              </article>
+            ))
+          ) : (
+            <p className="empty-state">Todavia no hay tematicas registradas para esta obra.</p>
+          )}
         </div>
       </section>
 
@@ -232,7 +427,8 @@ export default async function BookSummaryPage({ params }: { params: { id: string
             <h2 className="section-title">Extracto procesado por la IA</h2>
           </div>
           <p className="support-text excerpt-note">
-            Se muestra el texto almacenado como respaldo del procesamiento para acompanar el resumen exportable.
+            Se muestra el texto almacenado como respaldo del procesamiento para acompanar el
+            resumen exportable.
           </p>
           <div className="excerpt-box">{processedExcerpt}</div>
         </section>

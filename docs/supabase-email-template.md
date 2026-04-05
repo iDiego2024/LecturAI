@@ -1,6 +1,6 @@
 # Template de confirmación para Supabase
 
-LecturAI usa Supabase Auth para el correo de confirmación de cuenta.
+Comprendia usa Supabase Auth para el correo de confirmación de cuenta.
 
 ## Archivo listo para usar
 
@@ -17,7 +17,7 @@ La plantilla HTML quedó en:
 5. Cambia el asunto por:
 
 ```text
-Confirma tu correo para entrar a LecturAI
+Confirma tu correo para entrar a Comprendia
 ```
 
 ## Variables usadas por la plantilla
@@ -36,7 +36,7 @@ Estas variables están documentadas por Supabase en:
 
 ## Flujo implementado en la app
 
-Además del template, el registro en LecturAI ahora:
+Además del template, el registro en Comprendia ahora:
 
 - envía el enlace de confirmación con redirect a `/login?confirmed=1`
 - muestra un mensaje claro si la cuenta quedó pendiente de confirmación
@@ -51,5 +51,5 @@ Si usas `redirectTo`, asegúrate de que la URL esté permitida en:
 Ejemplo recomendado para producción:
 
 ```text
-https://lectur-ai.vercel.app/login?confirmed=1
+https://tu-dominio.com/login?confirmed=1
 ```

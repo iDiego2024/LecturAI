@@ -10,7 +10,7 @@ export default async function Navbar() {
       <div className="container nav-content">
         <Link href="/" className="logo">
           <span className="logo-icon">✧</span>
-          <span className="logo-text">Lectur<span className="text-accent">AI</span></span>
+          <span className="logo-text">Comprendia</span>
         </Link>
         
         <div className="nav-links">

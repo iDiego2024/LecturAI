@@ -1,57 +1,75 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateQuestion } from '@/lib/gemini/questions';
+import { generateQuestion, type SupportedQuestionType } from '@/lib/gemini/questions';
 import { DEMO_MAX_TESTS, isDemoEmail } from '@/lib/demo';
 
 const ALLOWED_COGNITIVE_LEVELS = ['locate', 'interpret', 'reflect'] as const;
-const ALLOWED_QUESTION_TYPES = ['multiple_choice', 'true_false', 'development'] as const;
-const MAX_QUESTIONS_PER_TEST = 30;
+const ALLOWED_QUESTION_TYPES = [
+  'multiple_choice',
+  'true_false',
+  'development',
+  'matching',
+  'creative_writing',
+] as const;
+const MAX_QUESTIONS_PER_TEST = 45;
 
-function isAllowedStringArray(value: unknown, allowedValues: readonly string[]) {
+type QuestionPlanItem = {
+  cognitiveLevel: (typeof ALLOWED_COGNITIVE_LEVELS)[number];
+  questionType: SupportedQuestionType;
+  topicHint?: string;
+};
+
+function isQuestionPlan(value: unknown): value is QuestionPlanItem[] {
   return (
     Array.isArray(value) &&
     value.length > 0 &&
-    value.every((item) => typeof item === 'string' && allowedValues.includes(item))
+    value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as QuestionPlanItem).cognitiveLevel === 'string' &&
+        ALLOWED_COGNITIVE_LEVELS.includes((item as QuestionPlanItem).cognitiveLevel) &&
+        typeof (item as QuestionPlanItem).questionType === 'string' &&
+        ALLOWED_QUESTION_TYPES.includes((item as QuestionPlanItem).questionType)
+    )
   );
 }
 
 export async function POST(request: Request) {
   try {
     const supabase = createClient();
-    
-    // Auth check
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { bookId, count, config } = body;
+    const { bookId, config } = body;
 
-    if (!bookId || !count || !config) {
+    if (!bookId || !config) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!Number.isInteger(count) || count < 1 || count > MAX_QUESTIONS_PER_TEST) {
+    if (
+      typeof config?.targetGrade !== 'string' ||
+      !config.targetGrade.trim() ||
+      !isQuestionPlan(config?.questionPlan)
+    ) {
+      return NextResponse.json({ error: 'Configuracion de evaluacion invalida.' }, { status: 400 });
+    }
+
+    const questionPlan = config.questionPlan;
+
+    if (questionPlan.length < 1 || questionPlan.length > MAX_QUESTIONS_PER_TEST) {
       return NextResponse.json(
         { error: `La cantidad de preguntas debe estar entre 1 y ${MAX_QUESTIONS_PER_TEST}.` },
         { status: 400 }
       );
     }
 
-    if (
-      typeof config?.targetGrade !== 'string' ||
-      !config.targetGrade.trim() ||
-      !isAllowedStringArray(config?.distribution?.cognitive, ALLOWED_COGNITIVE_LEVELS) ||
-      !isAllowedStringArray(config?.distribution?.types, ALLOWED_QUESTION_TYPES)
-    ) {
-      return NextResponse.json(
-        { error: 'Configuracion de evaluacion invalida.' },
-        { status: 400 }
-      );
-    }
-
-    // Verify book ownership
     const { data: book } = await supabase
       .from('books')
       .select('id')
@@ -77,29 +95,35 @@ export async function POST(request: Request) {
       }
     }
 
-    // Generate questions in sequence to maintain context and avoid duplicates
     const questions = [];
+    const usedTopics: string[] = [];
     let existingContext = '';
 
-    for (let i = 0; i < count; i++) {
-      // Rotate cognitive levels and types based on config distribution
-      const q = await generateQuestion({
+    for (const planItem of questionPlan) {
+      const question = await generateQuestion({
         bookId,
-        cognitiveLevel: config.distribution.cognitive[i % config.distribution.cognitive.length],
-        questionType: config.distribution.types[i % config.distribution.types.length],
+        cognitiveLevel: planItem.cognitiveLevel,
+        questionType: planItem.questionType,
         targetGrade: config.targetGrade,
-        existingQuestionsContext: existingContext
+        existingQuestionsContext: existingContext,
+        topicHint: planItem.topicHint,
+        teacherRequest: config.teacherRequest,
+        usedTopics,
       });
-      if (!q) {
+
+      if (!question) {
         throw new Error('No se pudo generar una pregunta valida.');
       }
 
-      questions.push(q);
-      existingContext += `- [${q.cognitive_level}] ${q.question_text}\n`;
+      questions.push(question);
+      const topicLabel = (question as any).metadata?.topic_label;
+      if (typeof topicLabel === 'string' && topicLabel.trim()) {
+        usedTopics.push(topicLabel);
+      }
+      existingContext += `- [${question.cognitive_level}] ${question.question_text}\n`;
     }
 
     return NextResponse.json({ success: true, count: questions.length, questions });
-
   } catch (error) {
     console.error('API Error generating questions', error);
     return NextResponse.json(

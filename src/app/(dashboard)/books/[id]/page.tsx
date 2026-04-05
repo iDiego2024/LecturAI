@@ -39,7 +39,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         />
         <div className="glass-panel p-8 text-center mt-8">
           <h2 className="text-xl mb-4 text-warning">Libro en procesamiento: {book.processing_status}</h2>
-          <p className="text-secondary">Vuelve en unos minutos cuando LecturAI haya terminado de leer la obra completa.</p>
+          <p className="text-secondary">Vuelve en unos minutos cuando Comprendia haya terminado de leer la obra completa.</p>
         </div>
         <style>{`.back-link { color: var(--text-muted); } .mb-4 { margin-bottom: 1rem; } .mt-8 { margin-top: 2rem; } .p-8 { padding: 2rem; } .text-center { text-align: center; } .text-xl { font-size: 1.25rem; font-weight: 700; } .text-warning { color: var(--warning); } .text-secondary { color: var(--text-secondary); }`}</style>
       </div>
@@ -63,6 +63,7 @@ export default async function BookDetailPage({ params }: { params: { id: string 
   const characters = (entities as any[])?.filter(e => e.entity_type === 'character') || [];
   const conflicts = (entities as any[])?.filter(e => e.entity_type === 'conflict') || [];
   const spaces = (entities as any[])?.filter(e => e.entity_type === 'space') || [];
+  const sourceRef = book.source_reference as any | null;
 
   return (
     <div className="book-detail animate-fade-in">
@@ -137,6 +138,27 @@ export default async function BookDetailPage({ params }: { params: { id: string 
 
         {/* Right Column - Context Info */}
         <div className="side-col">
+          {book.source_type === 'external_import' && sourceRef?.sourceUrl && (
+            <section className="glass-panel section-card">
+              <h2 className="section-title">Procedencia</h2>
+              <p className="text-secondary" style={{ marginTop: '0.35rem', lineHeight: 1.55 }}>
+                Recurso importado desde una fuente oficial. Usamos el archivo solo para analisis interno dentro de tu cuenta.
+              </p>
+              <div className="source-links" style={{ marginTop: '0.85rem' }}>
+                <a className="source-link" href={sourceRef.sourceUrl} target="_blank" rel="noreferrer">
+                  Ver recurso en origen
+                </a>
+                {sourceRef.licenseUrl ? (
+                  <a className="source-link" href={sourceRef.licenseUrl} target="_blank" rel="noreferrer">
+                    {sourceRef.licenseLabel || 'Ver licencia'}
+                  </a>
+                ) : sourceRef.licenseLabel ? (
+                  <div className="text-muted text-sm">{sourceRef.licenseLabel}</div>
+                ) : null}
+              </div>
+            </section>
+          )}
+
           <section className="glass-panel section-card">
             <h2 className="section-title">Temáticas Centrales</h2>
             <ul className="themes-list">
@@ -176,6 +198,18 @@ export default async function BookDetailPage({ params }: { params: { id: string 
         .text-xl { font-size: 1.25rem; }
         .text-sm { font-size: 0.85rem; }
         .text-muted { color: var(--text-muted); }
+
+        .source-links {
+          display: grid;
+          gap: 0.5rem;
+        }
+        .source-link {
+          display: inline-flex;
+          color: rgba(217, 102, 52, 0.95);
+          font-weight: 800;
+          text-decoration: none;
+        }
+        .source-link:hover { text-decoration: underline; }
         
         .btn-glow {
           box-shadow: 0 12px 26px rgba(217, 102, 52, 0.26);

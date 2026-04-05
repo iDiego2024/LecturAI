@@ -1,14 +1,15 @@
-# LecturAI ✧
+# Comprendia ✧
 
 **Evaluaciones de lectura que realmente miden comprensión profunda.**
 
-LecturAI es una plataforma diseñada para docentes que permite subir un libro en formato PDF/EPUB, procesarlo mediante Inteligencia Artificial (Google Gemini), y generar pruebas de comprensión lectora niveladas y con sustento pedagógico.
+Comprendia es una plataforma diseñada para docentes que permite subir un libro en formato PDF/EPUB, procesarlo mediante Inteligencia Artificial (Google Gemini), y generar pruebas de comprensión lectora niveladas y con sustento pedagógico.
 
-A diferencia de los resúmenes genéricos, LecturAI **lee el libro completo**, extrae personajes, eventos y temas, y luego utiliza generación aumentada por recuperación (RAG) para trazar cada pregunta a fragmentos exactos del libro, evitando ambigüedades o alucinaciones.
+A diferencia de los resúmenes genéricos, Comprendia **lee el libro completo**, extrae personajes, eventos y temas, y luego utiliza generación aumentada por recuperación (RAG) para trazar cada pregunta a fragmentos exactos del libro, evitando ambigüedades o alucinaciones.
 
 ## Características
 
 - 📚 **Análisis Narrativo Completo:** Extrae personajes, conflictos, espacios y temáticas.
+- 🏛️ **Fuentes Oficiales (Chile):** Permite importar PDFs desde fuentes oficiales (registra procedencia y licencia cuando existe).
 - 🧠 **Niveles Cognitivos:** Permite distribuir preguntas entre Localizar, Interpretar y Reflexionar.
 - 🎯 **Tipos de Múltiples:** Selección múltiple, verdadero/falso y desarrollo.
 - 📝 **Exportación Dual:** Genera documento Word listo para imprimir para el alumno, y otro con pautas de corrección para el docente.
@@ -37,7 +38,8 @@ A diferencia de los resúmenes genéricos, LecturAI **lee el libro completo**, e
 1. Crea un nuevo proyecto en Supabase.
 2. Ve al SQL Editor en el panel de control.
 3. Copia el contenido completo de `supabase/migrations/001_initial_schema.sql` y ejecútalo. Esto creará todas las tablas, vistas, y roles de seguridad necesarios.
-4. Ve a **Storage** y crea un _Bucket_ público llamado `books`.
+4. (Opcional) Si usarás importación desde fuentes oficiales, ejecuta también `supabase/migrations/008_external_book_sources.sql`.
+5. Ve a **Storage** y crea un _Bucket_ público llamado `books`.
 
 ### 3. Configuración Local (segura)
 

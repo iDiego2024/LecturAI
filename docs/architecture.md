@@ -1,6 +1,6 @@
-# Arquitectura de LecturAI
+# Arquitectura de Comprendia
 
-LecturAI es una aplicación web full-stack diseñada para docentes, que permite generar pruebas de comprensión lectora de alta calidad narrativa y pedagógica, asegurando la lectura completa del texto mediante Inteligencia Artificial (Google Gemini).
+Comprendia es una aplicación web full-stack diseñada para docentes, que permite generar pruebas de comprensión lectora de alta calidad narrativa y pedagógica, asegurando la lectura completa del texto mediante Inteligencia Artificial (Google Gemini).
 
 ## 1. Stack Tecnológico
 
@@ -17,7 +17,7 @@ LecturAI es una aplicación web full-stack diseñada para docentes, que permite 
 ## 2. Decisiones Arquitectónicas Principales
 
 ### 2.1 Enfoque de Lectura Completa (No Resumen)
-Para garantizar la calidad pedagógica y evitar alucinaciones "genéricas", LecturAI no confía en que la IA "ya conozca" el libro de memoria. El sistema extrae el texto completo, lo analiza, y luego genera embeddings para trazar cada pregunta a fragmentos específicos del libro.
+Para garantizar la calidad pedagógica y evitar alucinaciones "genéricas", Comprendia no confía en que la IA "ya conozca" el libro de memoria. El sistema extrae el texto completo, lo analiza, y luego genera embeddings para trazar cada pregunta a fragmentos específicos del libro.
 
 ### 2.2 Patrón de Procesamiento Asíncrono (Pipeline)
 El procesamiento de un PDF grande excede los límites de tiempo de respuesta HTTP estándar (especialmente en funciones Serverless).

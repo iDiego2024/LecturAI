@@ -14,6 +14,7 @@ export default async function TestsListPage() {
       title,
       target_grade,
       total_score,
+      variant_label,
       created_at,
       books ( id, title )
     `)
@@ -58,6 +59,7 @@ export default async function TestsListPage() {
                 <h3 className="test-title">{test.title}</h3>
                 <p className="test-book">Libro: {test.books.title}</p>
                 <div className="test-meta mt-4">
+                  {test.variant_label && <span className="badge">Variante {test.variant_label}</span>}
                   <span className="badge">{test.target_grade}</span>
                   <span className="badge">{test.total_score} pts</span>
                   <span className="test-date">{new Date(test.created_at).toLocaleDateString()}</span>

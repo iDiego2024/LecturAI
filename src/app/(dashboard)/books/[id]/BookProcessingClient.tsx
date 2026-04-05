@@ -27,6 +27,15 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
   useEffect(() => {
     // Only start automatically if not already failed or paused
     if (!isPaused && status !== 'failed') {
+      if (initialStatus === 'analyzing') {
+        processingRef.current = true;
+        setStatus('consolidating');
+        setCurrentAction('Consolidando análisis...');
+        setProgress(Math.max(initialProgress, 80));
+        void runConsolidation();
+        return;
+      }
+
       startProcessing();
     }
     // We intentionally run this only once on mount.
@@ -91,6 +100,7 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
          // Might be already consolidating or complete
          setStatus('consolidating');
          setCurrentAction('Consolidando análisis...');
+         setProgress((current) => Math.max(current, 80));
          await runConsolidation();
       } else {
         throw new Error('Respuesta inesperada al procesar el libro.');
@@ -123,6 +133,7 @@ export default function BookProcessingClient({ bookId, initialStatus, initialPro
         setStatus('ready');
         setProgress(100);
         setCurrentAction('Análisis final listo 🎉');
+        processingRef.current = false;
         
         // Refresh page to show the book details
         setTimeout(() => {

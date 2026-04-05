@@ -14,6 +14,10 @@ import {
 } from '@/lib/demo';
 
 export async function POST() {
+  let uploadedFilePath: string | null = null;
+  let createdBookId: string | null = null;
+  let supabaseAdmin: any = null;
+
   try {
     const authClient = createAuthClient();
     const { data: { user } } = await authClient.auth.getUser();
@@ -30,6 +34,7 @@ export async function POST() {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+    supabaseAdmin = supabase;
 
     const userId = user.id;
 
@@ -63,6 +68,7 @@ export async function POST() {
     const demoBookPath = path.join(process.cwd(), DEMO_BOOK_FILE);
     const demoFileBuffer = await fs.readFile(demoBookPath);
     const filePath = `${userId}/demo-${DEMO_BOOK_FILE}`;
+    uploadedFilePath = filePath;
 
     const { error: uploadError } = await supabase.storage
       .from('books')
@@ -92,6 +98,7 @@ export async function POST() {
       .single();
 
     if (bookError) throw bookError;
+    createdBookId = book.id;
 
     const { text, pages } = await extractTextFromEpub(demoFileBuffer);
 
@@ -104,6 +111,19 @@ export async function POST() {
 
     const normalizedText = normalizeText(text);
     const chunks = chunkText(normalizedText, 500, 50);
+
+    await supabase
+      .from('book_source_texts')
+      .upsert({
+        book_id: book.id,
+        extracted_text: text,
+        normalized_text: normalizedText,
+        extraction_metadata: {
+          source_type: 'epub',
+          pages,
+          chunk_count: chunks.length,
+        },
+      });
 
     const { data: job, error: jobError } = await supabase
       .from('book_jobs')
@@ -147,6 +167,20 @@ export async function POST() {
     return NextResponse.json({ success: true, book, job, reused: false });
   } catch (error) {
     console.error('Demo book setup error:', error);
+
+    if (supabaseAdmin && createdBookId) {
+      await supabaseAdmin
+        .from('books')
+        .update({
+          processing_status: 'failed',
+          processing_progress: 0,
+          processing_error: error instanceof Error ? error.message : 'No fue posible preparar el libro demo.',
+        })
+        .eq('id', createdBookId);
+    } else if (supabaseAdmin && uploadedFilePath) {
+      await supabaseAdmin.storage.from('books').remove([uploadedFilePath]);
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'No fue posible preparar el libro demo.' },
       { status: 500 }

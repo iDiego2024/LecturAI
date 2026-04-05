@@ -1,4 +1,4 @@
-# Prompts Internos de LecturAI
+# Prompts Internos de Comprendia
 
 Este documento registra las instrucciones base enviadas a Gemini para lograr los resultados esperados.
 

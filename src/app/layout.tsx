@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LecturAI | Evaluaciones de comprensión lectora impulsadas por IA",
-  description: "Plataforma premium para docentes. Genera pruebas escolares de comprensión lectora a partir de libros completos usando Inteligencia Artificial.",
+  title: "Comprendia | Evaluaciones de comprensión lectora impulsadas por IA",
+  applicationName: "Comprendia",
+  description: "Comprendia ayuda a docentes a generar evaluaciones de comprensión lectora a partir de libros completos usando Inteligencia Artificial.",
   icons: {
     icon: "/favicon.svg",
   },

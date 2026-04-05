@@ -48,6 +48,7 @@ export async function generateWordDocument({ testId, isTeacherVersion, userId }:
           question_text,
           correct_answer,
           distractors,
+          metadata,
           rubric,
           justification
         )
@@ -168,7 +169,7 @@ export async function generateWordDocument({ testId, isTeacherVersion, userId }:
         );
       }
       
-    } else if (q.q_type === 'development') {
+    } else if (q.q_type === 'development' || q.q_type === 'creative_writing') {
       // Add empty lines for student to write
       if (!isTeacherVersion) {
         for (let i = 0; i < 5; i++) {
@@ -196,6 +197,28 @@ export async function generateWordDocument({ testId, isTeacherVersion, userId }:
           new Paragraph({
             children: [new TextRun({ text: q.rubric || q.correct_answer, color: "008800" })],
             spacing: { after: 200 }
+          })
+        );
+      }
+    } else if (q.q_type === 'matching') {
+      const pairs = Array.isArray(q.metadata?.matching_pairs) ? q.metadata.matching_pairs : [];
+      pairs.forEach((pair: any, pairIndex: number) => {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: `    ${pairIndex + 1}. `, bold: true }),
+              new TextRun({ text: `${pair.left}  __________  ${pair.right}` }),
+            ],
+            spacing: { after: 100 }
+          })
+        );
+      });
+
+      if (isTeacherVersion && q.correct_answer) {
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: `Solucion guía: ${q.correct_answer}`, color: "008800", bold: true })],
+            spacing: { before: 150, after: 200 }
           })
         );
       }

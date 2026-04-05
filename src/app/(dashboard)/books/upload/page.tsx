@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { DEMO_BOOK_AUTHOR, DEMO_BOOK_FILE, DEMO_BOOK_TITLE, isDemoEmail } from '@/lib/demo';
+import ExternalBookSourcePicker from './ExternalBookSourcePicker';
 
 export default function UploadBookPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [isDemo, setIsDemo] = useState(false);
+  const [entryMode, setEntryMode] = useState<'select' | 'device' | 'official'>('select');
   
   // Upload and processing state
   const [status, setStatus] = useState<'idle' | 'uploading' | 'processing' | 'done' | 'error'>('idle');
@@ -26,7 +28,9 @@ export default function UploadBookPage() {
     const loadUser = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      setIsDemo(isDemoEmail(user?.email));
+      const demo = isDemoEmail(user?.email);
+      setIsDemo(demo);
+      setEntryMode(demo ? 'device' : 'select');
     };
 
     void loadUser();
@@ -156,13 +160,13 @@ export default function UploadBookPage() {
     <div className="upload-page animate-fade-in">
       <div className="page-header">
         <Link href="/books" className="back-link mb-4">← Volver a Biblioteca</Link>
-        <h1 className="page-title">Nuevo Libro</h1>
+        <h1 className="page-title">Agregar libro</h1>
         <p className="page-subtitle">
           {isDemo ? 'En el demo usamos un solo libro de ejemplo para que explores el flujo completo sin subir archivos propios.' : 'Sube tu lectura (PDF o EPUB) y te ayudamos a convertirla en evaluación.'}
         </p>
       </div>
 
-      <div className="upload-container glass-panel">
+      <div className={`upload-container glass-panel ${!isDemo && entryMode !== 'device' ? 'wide' : ''}`}>
         
         {status === 'idle' || status === 'error' ? (
           <>
@@ -188,64 +192,90 @@ export default function UploadBookPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleUpload}>
-                <div className="form-group">
-                  <label>Archivo PDF o EPUB</label>
-                  <div 
-                    className={`dropzone ${file ? 'has-file' : ''}`}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className="dropzone-icon">📄</div>
-                    <div className="dropzone-text">
-                      {file ? file.name : 'Haz clic para seleccionar el PDF o EPUB del libro'}
+              <>
+                {entryMode === 'select' && (
+                  <div className="source-selector">
+                    <div className="selector-head">
+                      <div>
+                        <h2 className="selector-title">Elige el origen del libro</h2>
+                        <p className="selector-subtitle">
+                          Puedes subir un PDF/EPUB o importar un recurso desde fuentes oficiales y bibliotecas abiertas para analizarlo en tu cuenta.
+                        </p>
+                      </div>
                     </div>
-                    {file && <div className="dropzone-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+                    <div className="selector-grid">
+                      <button type="button" className="selector-card" onClick={() => setEntryMode('device')}>
+                        <div className="selector-icon">📄</div>
+                        <div className="selector-name">Subir PDF o EPUB</div>
+                        <div className="selector-desc">Usa un archivo del computador y continua con el analisis habitual.</div>
+                      </button>
+                      <button type="button" className="selector-card" onClick={() => setEntryMode('official')}>
+                        <div className="selector-icon">🏛️</div>
+                        <div className="selector-name">Buscar desde fuentes oficiales y bibliotecas abiertas</div>
+                        <div className="selector-desc">Explora catálogos confiables y, si hay un archivo compatible, impórtalo al mismo flujo de análisis.</div>
+                      </button>
+                    </div>
                   </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileSelect} 
-                    accept=".pdf,.epub,application/epub+zip" 
-                    style={{ display: 'none' }} 
-                  />
-                </div>
+                )}
 
-                <div className="form-group mt-4">
-                  <label htmlFor="title">Título del Libro (Requerido)</label>
-                  <input
-                    id="title"
-                    type="text"
-                    className="input"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    placeholder="Ej: Crónica de una muerte anunciada"
-                  />
-                </div>
+                {entryMode === 'official' && <ExternalBookSourcePicker onBack={() => setEntryMode('select')} />}
 
-                <div className="form-group mt-4">
-                  <label htmlFor="author">Autor (Opcional)</label>
-                  <input
-                    id="author"
-                    type="text"
-                    className="input"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
-                    placeholder="Ej: Gabriel García Márquez"
-                  />
-                </div>
+                {entryMode === 'device' && (
+                  <form onSubmit={handleUpload}>
+                    <div className="form-group">
+                      <label>Archivo PDF o EPUB</label>
+                      <div className={`dropzone ${file ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}>
+                        <div className="dropzone-icon">📄</div>
+                        <div className="dropzone-text">
+                          {file ? file.name : 'Haz clic para seleccionar el PDF o EPUB del libro'}
+                        </div>
+                        {file && <div className="dropzone-size">{(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+                      </div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        accept=".pdf,.epub,application/epub+zip"
+                        style={{ display: 'none' }}
+                      />
+                    </div>
 
-                <div className="form-actions mt-8">
-                  <Link href="/books" className="btn btn-secondary">Cancelar</Link>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={!file || !title}
-                  >
-                    Subir y empezar análisis
-                  </button>
-                </div>
-              </form>
+                    <div className="form-group mt-4">
+                      <label htmlFor="title">Título del Libro (Requerido)</label>
+                      <input
+                        id="title"
+                        type="text"
+                        className="input"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        required
+                        placeholder="Ej: Crónica de una muerte anunciada"
+                      />
+                    </div>
+
+                    <div className="form-group mt-4">
+                      <label htmlFor="author">Autor (Opcional)</label>
+                      <input
+                        id="author"
+                        type="text"
+                        className="input"
+                        value={author}
+                        onChange={(e) => setAuthor(e.target.value)}
+                        placeholder="Ej: Gabriel García Márquez"
+                      />
+                    </div>
+
+                    <div className="form-actions mt-8">
+                      <button type="button" className="btn btn-secondary" onClick={() => setEntryMode('select')}>
+                        Cambiar origen
+                      </button>
+                      <button type="submit" className="btn btn-primary" disabled={!file || !title}>
+                        Subir y empezar análisis
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
             )}
           </>
         ) : (
@@ -294,6 +324,10 @@ export default function UploadBookPage() {
           max-width: 600px;
           padding: 2.5rem;
           margin-top: 2rem;
+        }
+
+        .upload-container.wide {
+          max-width: 1100px;
         }
 
         .back-link {
@@ -430,6 +464,55 @@ export default function UploadBookPage() {
           gap: 1rem;
         }
 
+        .source-selector {
+          display: grid;
+          gap: 1.25rem;
+        }
+        .selector-title {
+          margin: 0;
+          font-size: 1.35rem;
+          color: var(--text-primary);
+        }
+        .selector-subtitle {
+          margin: 0.35rem 0 0;
+          color: var(--text-secondary);
+          max-width: 46rem;
+          line-height: 1.55;
+        }
+        .selector-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+        .selector-card {
+          text-align: left;
+          border-radius: 1.35rem;
+          border: 1px solid rgba(82, 52, 26, 0.12);
+          background: linear-gradient(135deg, rgba(255, 252, 247, 0.98) 0%, rgba(255, 244, 231, 0.94) 100%);
+          padding: 1.25rem 1.25rem;
+          cursor: pointer;
+          transition: transform 0.16s ease, border-color 0.16s ease;
+        }
+        .selector-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(217, 102, 52, 0.25);
+        }
+        .selector-icon {
+          font-size: 1.6rem;
+          margin-bottom: 0.85rem;
+        }
+        .selector-name {
+          font-weight: 950;
+          font-size: 1.1rem;
+          color: var(--text-primary);
+        }
+        .selector-desc {
+          margin-top: 0.5rem;
+          color: var(--text-secondary);
+          line-height: 1.5;
+          font-weight: 650;
+        }
+
         .processing-state {
           padding: 2rem 0;
         }
@@ -458,6 +541,15 @@ export default function UploadBookPage() {
           background: var(--accent-gradient);
           border-radius: 100px;
           transition: width 0.3s ease;
+        }
+
+        @media (max-width: 820px) {
+          .upload-container {
+            padding: 1.6rem;
+          }
+          .selector-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>

@@ -1,18 +1,19 @@
 {
-  "name": "lectur-ai",
+  "name": "comprendia",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NEXT_DISABLE_WEBPACK_CACHE=1 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@napi-rs/canvas": "^0.1.58",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
-    "@napi-rs/canvas": "^0.1.58",
+    "cheerio": "^1.2.0",
     "docx": "^9.1.1",
     "epub2": "^3.0.2",
     "file-saver": "^2.0.5",

@@ -4,6 +4,8 @@ import { createClient as createAuthClient } from '@/lib/supabase/server';
 
 export const maxDuration = 60; // Max allowed for Vercel Hobby/Pro on normal routes
 
+const STALE_CHUNK_TIMEOUT_SECONDS = 300;
+
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -38,7 +40,7 @@ export async function POST(
       .from('book_jobs')
       .select('*')
       .eq('book_id', bookId)
-      .in('status', ['pending', 'processing', 'failed', 'paused'])
+      .in('status', ['pending', 'processing', 'failed', 'paused', 'consolidating', 'completed'])
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -50,6 +52,22 @@ export async function POST(
     if (job.status === 'completed' || job.status === 'consolidating') {
       return NextResponse.json({ success: true, message: 'Job already past chunk processing', job });
     }
+
+    const staleBeforeIso = new Date(
+      Date.now() - STALE_CHUNK_TIMEOUT_SECONDS * 1000
+    ).toISOString();
+
+    const { error: staleResetError } = await supabase
+      .from('book_chunk_jobs')
+      .update({
+        status: 'retrying',
+        error_message: `Chunk reclaimed after ${STALE_CHUNK_TIMEOUT_SECONDS}s without progress`,
+      })
+      .eq('job_id', job.id)
+      .eq('status', 'processing')
+      .lt('updated_at', staleBeforeIso);
+
+    if (staleResetError) throw staleResetError;
     
     // Update job to processing
     if (job.status !== 'processing') {

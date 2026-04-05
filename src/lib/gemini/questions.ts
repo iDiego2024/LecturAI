@@ -2,25 +2,107 @@ import { createClient } from '../supabase/server';
 import { getGenerationModel } from './client';
 import { generateQuestionPrompt } from './prompts';
 
+export type SupportedQuestionType =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'development'
+  | 'matching'
+  | 'creative_writing';
+
 type QuestionConfig = {
   bookId: string;
   cognitiveLevel: 'locate' | 'interpret' | 'reflect';
-  questionType: 'multiple_choice' | 'true_false' | 'development';
+  questionType: SupportedQuestionType;
   targetGrade: string;
   existingQuestionsContext?: string;
-  topicHint?: string; // Optional: e.g. "Focus on character X" or "Focus on the ending"
+  topicHint?: string;
+  teacherRequest?: string;
+  usedTopics?: string[];
 };
 
-/**
- * Generates a single question using RAG (Retrieval-Augmented Generation)
- * to ensure traceability back to the book's text.
- */
+function parseJsonResponse(responseText: string) {
+  return JSON.parse(responseText.replace(/```json\n?|\n?```/g, '').trim());
+}
+
+function normalizeTopic(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function buildTopicCandidates(bookData: any) {
+  const candidates: string[] = [];
+
+  const pushUnique = (value: string | null | undefined) => {
+    if (!value?.trim()) return;
+    if (!candidates.includes(value.trim())) {
+      candidates.push(value.trim());
+    }
+  };
+
+  for (const character of bookData.characters || []) {
+    pushUnique(character.name);
+  }
+
+  for (const theme of bookData.themes || []) {
+    pushUnique(theme.theme_name);
+  }
+
+  for (const chapter of bookData.chapters || []) {
+    pushUnique(chapter.title);
+  }
+
+  for (const event of bookData.events || []) {
+    pushUnique(event.name);
+  }
+
+  return candidates;
+}
+
+async function getContextChunks(
+  supabase: ReturnType<typeof createClient>,
+  bookId: string,
+  topicHint?: string
+) {
+  if (topicHint?.trim()) {
+    const { data: topicChunks } = await supabase
+      .from('book_chunks')
+      .select('id, content, page_number')
+      .eq('book_id', bookId)
+      .ilike('content', `%${topicHint.trim()}%`)
+      .limit(5);
+
+    if (topicChunks?.length) return topicChunks;
+  }
+
+  const { data: contextChunks } = (await supabase.rpc('get_random_chunks', {
+    book_id_param: bookId,
+    limit_val: 5,
+  })) as { data: any[] | null };
+
+  if (contextChunks?.length) return contextChunks;
+
+  const { data } = await supabase
+    .from('book_chunks')
+    .select('id, content, page_number')
+    .eq('book_id', bookId)
+    .limit(5);
+
+  return data || [];
+}
+
+function resolveTopicHint(topicCandidates: string[], usedTopics: string[], requestedTopic?: string) {
+  if (requestedTopic?.trim()) return requestedTopic.trim();
+
+  const used = new Set(usedTopics.map(normalizeTopic));
+  const nextTopic = topicCandidates.find((candidate) => !used.has(normalizeTopic(candidate)));
+
+  return nextTopic || topicCandidates[0] || '';
+}
+
 export async function generateQuestion(config: QuestionConfig) {
   const supabase = createClient();
   const model = getGenerationModel();
 
   try {
-    // 1. Get book metadata
     const { data: book } = await supabase
       .from('books')
       .select('title, summary')
@@ -29,30 +111,24 @@ export async function generateQuestion(config: QuestionConfig) {
 
     if (!book) throw new Error('Book not found');
 
-    // 2. Retrieve relevant context (RAG)
-    // We get random chunks since we want varied coverage, but if topicHint is provided,
-    // we should ideally do semantic search on it. For now, we take 5 random chunks.
-    const { data: contextChunks } = await supabase
-      .rpc('get_random_chunks', { 
-        book_id_param: config.bookId, 
-        limit_val: 5 
-      }) as { data: any[] | null };
-      
-    // Fallback if random function doesn't exist yet
-    let chunks = contextChunks;
-    if (!chunks) {
-      const { data } = await supabase
-        .from('book_chunks')
-        .select('id, content, page_number')
-        .eq('book_id', config.bookId)
-        .limit(5);
-      chunks = data || [];
-    }
+    const [
+      { data: characters },
+      { data: themes },
+      { data: chapters },
+      { data: events },
+    ] = await Promise.all([
+      supabase.from('book_entities').select('name').eq('book_id', config.bookId).eq('entity_type', 'character'),
+      supabase.from('book_themes').select('theme_name').eq('book_id', config.bookId),
+      supabase.from('book_chapters').select('title').eq('book_id', config.bookId).order('chapter_number', { ascending: true }),
+      supabase.from('book_entities').select('name').eq('book_id', config.bookId).eq('entity_type', 'event'),
+    ]);
 
-    const contextText = chunks.map(c => `[Página ${c.page_number}]: ${c.content}`).join('\n\n');
-    const chunkIds = chunks.map(c => c.id);
+    const topicCandidates = buildTopicCandidates({ characters, themes, chapters, events });
+    const topicHint = resolveTopicHint(topicCandidates, config.usedTopics || [], config.topicHint);
+    const chunks = await getContextChunks(supabase, config.bookId, topicHint);
+    const contextText = chunks.map((chunk) => `[Pagina ${chunk.page_number}]: ${chunk.content}`).join('\n\n');
+    const chunkIds = chunks.map((chunk) => chunk.id);
 
-    // 3. Generate the prompt
     const prompt = generateQuestionPrompt(
       book.title,
       book.summary || '',
@@ -60,15 +136,14 @@ export async function generateQuestion(config: QuestionConfig) {
       config.questionType,
       config.targetGrade,
       contextText,
-      config.existingQuestionsContext
+      config.existingQuestionsContext,
+      topicHint,
+      config.teacherRequest || ''
     );
 
-    // 4. Call Gemini
     const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    const qData = JSON.parse(responseText);
+    const qData = parseJsonResponse(result.response.text());
 
-    // 5. Save to the question bank
     const { data: question, error } = await supabase
       .from('question_bank')
       .insert({
@@ -81,15 +156,18 @@ export async function generateQuestion(config: QuestionConfig) {
         rubric: qData.rubric || null,
         justification: qData.justification,
         traceability_chunks: chunkIds,
-        status: 'draft'
+        metadata: {
+          ...(qData.metadata || {}),
+          topic_label: qData.metadata?.topic_label || topicHint || null,
+        },
+        status: 'draft',
       })
       .select()
       .single();
 
     if (error) throw error;
-    
-    return question;
 
+    return question;
   } catch (error) {
     console.error('Error generating question:', error);
     throw error;

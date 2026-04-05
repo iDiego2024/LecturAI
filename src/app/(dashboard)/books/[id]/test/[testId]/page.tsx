@@ -1,11 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import DeleteTestButton from './DeleteTestButton';
-import ShareButton from '@/components/ShareByEmailButton';
 import { isDemoEmail } from '@/lib/demo';
+import TestEditorPanel from './TestEditorPanel';
+import TestActionsMenu from './TestActionsMenu';
 
-export default async function ReviewTestPage({ params }: { params: { id: string, testId: string } }) {
+export default async function ReviewTestPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string, testId: string };
+  searchParams?: { mode?: string };
+}) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://lectur-ai.vercel.app';
@@ -28,6 +34,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           question_text,
           correct_answer,
           distractors,
+          metadata,
           rubric,
           justification
         )
@@ -42,6 +49,7 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
   }
 
   const t = test as any;
+  const editModeActive = searchParams?.mode === 'edit';
 
   // Sort items by order
   const items = t.test_items.sort((a: any, b: any) => a.item_order - b.item_order);
@@ -55,25 +63,16 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           <p className="page-subtitle">
             {t.books.title} • {t.target_grade} • {t.total_score} puntos
           </p>
-          <div className="export-actions">
-            <DeleteTestButton testId={t.id} testTitle={t.title} bookId={params.id} />
-            <ShareButton
-              subject={`Evaluacion: ${t.title}`}
-              body={`Te comparto la evaluacion "${t.title}" del libro ${t.books.title}.`}
-              shareUrl={`${appUrl}/books/${params.id}/test/${params.testId}`}
-            />
-            {!isDemo && (
-              <>
-                <a href={`/api/tests/${t.id}/export?version=student`} className="btn btn-secondary action-btn" target="_blank" rel="noopener noreferrer">
-                  <span className="mr-2">📄</span> Word alumno
-                </a>
-                <a href={`/api/tests/${t.id}/export?version=teacher`} className="btn btn-primary btn-glow action-btn" target="_blank" rel="noopener noreferrer">
-                  <span className="mr-2">✅</span> Word docente
-                </a>
-              </>
-            )}
-          </div>
         </div>
+        <TestActionsMenu
+          testId={t.id}
+          bookId={params.id}
+          testTitle={t.title}
+          bookTitle={t.books.title}
+          appUrl={appUrl}
+          isDemo={isDemo}
+          editModeActive={editModeActive}
+        />
       </div>
 
       {isDemo && (
@@ -81,6 +80,20 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           Modo demo: puedes revisar la evaluacion, pero las descargas estan deshabilitadas.
         </div>
       )}
+
+      <TestEditorPanel
+        testId={t.id}
+        initialTitle={t.title}
+        initialInstructions={t.instructions || 'Lee atentamente cada pregunta y responde según lo solicitado.'}
+        initialTargetGrade={t.target_grade || ''}
+        initialQuestions={items.map((item: any) => ({
+          id: item.id,
+          itemOrder: item.item_order,
+          points: item.points,
+          question: item.question_bank,
+        }))}
+        initialEditMode={editModeActive}
+      />
 
       <div className="test-content mt-8">
         <div className="instructions-box p-6 mb-8">
@@ -108,6 +121,9 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
 
                 <div className="q-body">
                   <h3 className="q-text">{q.question_text}</h3>
+                  {q.metadata?.topic_label && (
+                    <p className="q-topic">Tema: {q.metadata.topic_label}</p>
+                  )}
                   
                   {/* Options for Multiple Choice */}
                   {q.q_type === 'multiple_choice' && (
@@ -137,6 +153,42 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
                   {q.q_type === 'development' && (
                     <div className="q-dev">
                       <div className="dev-lines">
+                        <div className="line"></div>
+                        <div className="line"></div>
+                        <div className="line"></div>
+                        <div className="line"></div>
+                      </div>
+                      <div className="dev-rubric mt-4">
+                        <div className="rubric-title">Pauta de Corrección (Docente):</div>
+                        <p>{q.rubric || q.correct_answer}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {q.q_type === 'matching' && (
+                    <div className="q-options">
+                      {(q.metadata?.matching_pairs || []).map((pair: any, index: number) => (
+                        <div key={index} className="option">
+                          <span className="opt-letter">{index + 1}.</span>
+                          <span>
+                            <strong>{pair.left}</strong> → {pair.right}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {q.q_type === 'creative_writing' && (
+                    <div className="q-dev">
+                      {Array.isArray(q.metadata?.writing_focus) && q.metadata.writing_focus.length > 0 && (
+                        <div className="creative-focus">
+                          {q.metadata.writing_focus.map((focus: string, index: number) => (
+                            <span key={index} className="focus-chip">{focus}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="dev-lines">
+                        <div className="line"></div>
                         <div className="line"></div>
                         <div className="line"></div>
                         <div className="line"></div>
@@ -206,45 +258,23 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
         }
         
         .page-header {
-          display: block;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1.25rem;
+          margin-bottom: 0.75rem;
         }
 
         .page-heading {
+          flex: 1 1 auto;
+          min-width: 0;
           max-width: 100%;
         }
 
         @media (max-width: 768px) {
-          .export-actions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
-          .export-actions .btn { width: 100%; justify-content: center; }
-        }
-
-        .export-actions {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
-          gap: 0.6rem;
-          justify-content: start;
-          align-items: stretch;
-          margin-top: 1rem;
-        }
-
-        .export-actions .btn {
-          white-space: nowrap;
-          min-height: 40px;
-          padding: 0.62rem 0.95rem;
-          font-size: 0.88rem;
-          font-weight: 700;
-          justify-content: center;
-          text-align: center;
-          border-radius: 14px;
-        }
-
-        .action-btn {
-          display: inline-flex;
-          align-items: center;
-        }
-        
-        .btn-glow {
-          box-shadow: 0 8px 18px rgba(217, 102, 52, 0.2);
+          .page-header {
+            flex-direction: column;
+          }
         }
 
         .questions-list {
@@ -317,6 +347,13 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           line-height: 1.6;
           font-weight: 600;
           font-family: var(--font-serif);
+        }
+
+        .q-topic {
+          margin-bottom: 1rem;
+          color: var(--accent-primary);
+          font-size: 0.9rem;
+          font-weight: 700;
         }
 
         .q-options {
@@ -411,6 +448,23 @@ export default async function ReviewTestPage({ params }: { params: { id: string,
           line-height: 1.6;
         }
 
+        .creative-focus {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .focus-chip {
+          background: rgba(217, 102, 52, 0.12);
+          border: 1px solid rgba(217, 102, 52, 0.18);
+          color: #9b532d;
+          padding: 0.3rem 0.65rem;
+          border-radius: 999px;
+          font-size: 0.8rem;
+          font-weight: 700;
+        }
+
         .q-footer {
           padding: 1rem 1.5rem;
           border-top: 1px dashed var(--border-light);
@@ -447,6 +501,8 @@ function translateType(type: string) {
     case 'multiple_choice': return 'Sel. Múltiple';
     case 'true_false': return 'Verd. o Falso';
     case 'development': return 'Desarrollo';
+    case 'matching': return 'Pareados';
+    case 'creative_writing': return 'Escritura creativa';
     default: return type;
   }
 }

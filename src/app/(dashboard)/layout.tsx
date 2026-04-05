@@ -49,7 +49,7 @@ export default async function DashboardLayout({
         <div className="sidebar-header">
           <Link href="/books" className="logo">
             <span className="logo-icon">✧</span>
-            <span className="logo-text">Lectur<span className="text-accent">AI</span></span>
+            <span className="logo-text">Comprendia</span>
           </Link>
         </div>
 
