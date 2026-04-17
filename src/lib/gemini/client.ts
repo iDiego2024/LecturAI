@@ -10,15 +10,23 @@ export const genAI = new GoogleGenerativeAI(apiKey);
 
 // Model definitions
 export const MODELS = {
-  // Use 3.1-flash-lite-preview for massive 1M context free-tier availability
-  ANALYSIS: 'gemini-3.1-flash-lite-preview',
-  
-  // For standard question generation and smaller tasks
-  GENERATION: 'gemini-3.1-flash-lite-preview',
-  
+  // Stable long-context model for analysis tasks.
+  ANALYSIS: 'gemini-2.5-flash-lite',
+
+  // Stable low-cost model for question generation.
+  GENERATION_PRIMARY: 'gemini-2.5-flash-lite',
+
+  // Secondary stable fallback when the lite tier is saturated.
+  GENERATION_FALLBACK: 'gemini-2.5-flash',
+
   // For semantic search / vector database
   EMBEDDING: 'gemini-embedding-001'
 } as const;
+
+export const GENERATION_MODEL_CANDIDATES = [
+  MODELS.GENERATION_PRIMARY,
+  MODELS.GENERATION_FALLBACK,
+] as const;
 
 /**
  * Gets the standard Gemini model for analysis
@@ -36,9 +44,9 @@ export function getAnalysisModel() {
 /**
  * Gets the Gemini model for question generation
  */
-export function getGenerationModel() {
+export function getGenerationModel(modelName: string = MODELS.GENERATION_PRIMARY) {
   return genAI.getGenerativeModel({
-    model: MODELS.GENERATION,
+    model: modelName,
     generationConfig: {
       temperature: 0.4, // Slightly higher for creating varied distractors
       responseMimeType: 'application/json',

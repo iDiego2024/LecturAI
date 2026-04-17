@@ -1,5 +1,5 @@
 import { createClient } from '../supabase/server';
-import { getGenerationModel } from './client';
+import { GENERATION_MODEL_CANDIDATES, getGenerationModel } from './client';
 import { generateQuestionPrompt } from './prompts';
 
 export type SupportedQuestionType =
@@ -44,26 +44,33 @@ async function generateQuestionPayload(
   prompt: string,
   context: { bookId: string; questionType: SupportedQuestionType; targetGrade: string }
 ) {
-  const model = getGenerationModel();
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= MAX_GENERATION_RETRIES; attempt++) {
-    try {
-      const result = await model.generateContent(prompt);
-      return parseJsonResponse(result.response.text());
-    } catch (error) {
-      lastError = error;
+  for (const modelName of GENERATION_MODEL_CANDIDATES) {
+    const model = getGenerationModel(modelName);
 
-      if (!isRetryableGenerationError(error) || attempt === MAX_GENERATION_RETRIES) {
-        break;
+    for (let attempt = 1; attempt <= MAX_GENERATION_RETRIES; attempt++) {
+      try {
+        const result = await model.generateContent(prompt);
+        return parseJsonResponse(result.response.text());
+      } catch (error) {
+        lastError = error;
+
+        if (!isRetryableGenerationError(error)) {
+          break;
+        }
+
+        if (attempt === MAX_GENERATION_RETRIES) {
+          break;
+        }
+
+        const delayMs = Math.pow(2, attempt) * 1500 + Math.floor(Math.random() * 400);
+        console.warn(
+          `[Book ${context.bookId}] Gemini generation retry ${attempt}/${MAX_GENERATION_RETRIES} with ${modelName} for ${context.questionType} (${context.targetGrade}) after ${delayMs}ms`,
+          error
+        );
+        await sleep(delayMs);
       }
-
-      const delayMs = Math.pow(2, attempt) * 1500 + Math.floor(Math.random() * 400);
-      console.warn(
-        `[Book ${context.bookId}] Gemini generation retry ${attempt}/${MAX_GENERATION_RETRIES} for ${context.questionType} (${context.targetGrade}) after ${delayMs}ms`,
-        error
-      );
-      await sleep(delayMs);
     }
   }
 
