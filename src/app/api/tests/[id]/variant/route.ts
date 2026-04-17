@@ -10,13 +10,19 @@ function nextVariantLabel(existingLabels: string[]) {
   return `VAR-${existingLabels.length + 1}`;
 }
 
+function getBaseTitle(title: string) {
+  return title.replace(/\s+-\s+Variante\s+[A-Z0-9-]+$/i, '');
+}
+
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,28 +30,40 @@ export async function POST(
 
     const { data: test, error: testError } = await supabase
       .from('tests')
-      .select(`
+      .select(
+        `
         *,
         test_items (
+          item_order,
+          points,
           question_bank (
+            q_type,
+            cognitive_level,
             question_text,
             metadata
           )
         )
-      `)
+      `
+      )
       .eq('id', params.id)
       .single();
 
     if (testError || !test || (test as any).user_id !== user.id) {
-      return NextResponse.json({ error: 'Evaluacion no encontrada o sin permisos.' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Evaluacion no encontrada o sin permisos.' },
+        { status: 404 }
+      );
     }
 
     const typedTest = test as any;
-    const generationConfig = typedTest.generation_config;
+    const familyId = typedTest.variant_family_id || typedTest.id;
+    const originalItems = (typedTest.test_items || [])
+      .filter((item: any) => item.question_bank)
+      .sort((a: any, b: any) => a.item_order - b.item_order);
 
-    if (!generationConfig?.questionPlan?.length) {
+    if (originalItems.length === 0) {
       return NextResponse.json(
-        { error: 'Esta evaluacion no tiene configuracion guardada para crear variantes.' },
+        { error: 'Esta evaluacion no tiene preguntas para crear una variante.' },
         { status: 400 }
       );
     }
@@ -53,8 +71,7 @@ export async function POST(
     const { data: siblingTests } = await supabase
       .from('tests')
       .select('variant_label')
-      .eq('book_id', typedTest.book_id)
-      .eq('user_id', user.id);
+      .eq('variant_family_id', familyId);
 
     const label = nextVariantLabel(
       (siblingTests || [])
@@ -62,65 +79,95 @@ export async function POST(
         .filter((value: unknown) => typeof value === 'string' && value.trim())
     );
 
-    const variantTitle = typedTest.title.replace(/\s+-\s+Variante\s+[A-Z0-9-]+$/i, '');
+    const generationConfig =
+      typeof typedTest.generation_config === 'object' && typedTest.generation_config !== null
+        ? typedTest.generation_config
+        : {};
+    const baseTeacherRequest =
+      typeof generationConfig.teacherRequest === 'string'
+        ? generationConfig.teacherRequest.trim()
+        : '';
+
     const { data: newTest, error: insertTestError } = await supabase
       .from('tests')
       .insert({
         user_id: user.id,
         book_id: typedTest.book_id,
-        title: `${variantTitle} - Variante ${label}`,
+        title: `${getBaseTitle(typedTest.title)} - Variante ${label}`,
         target_grade: typedTest.target_grade,
         instructions: typedTest.instructions,
         status: 'draft',
         total_score: 0,
         generation_config: generationConfig,
         variant_label: label,
+        variant_family_id: familyId,
       })
       .select()
       .single();
 
-    if (insertTestError || !newTest) throw insertTestError || new Error('No se pudo crear la variante.');
+    if (insertTestError || !newTest) {
+      throw insertTestError || new Error('No se pudo crear la variante.');
+    }
 
     let existingContext = '';
     const usedTopics: string[] = [];
-    const originalItems = typedTest.test_items || [];
-    originalItems.forEach((item: any) => {
+
+    for (const item of originalItems) {
       const question = item.question_bank;
-      if (!question) return;
       existingContext += `- ${question.question_text}\n`;
       const topicLabel = question.metadata?.topic_label;
-      if (typeof topicLabel === 'string' && topicLabel.trim()) usedTopics.push(topicLabel);
-    });
+      if (typeof topicLabel === 'string' && topicLabel.trim()) {
+        usedTopics.push(topicLabel);
+      }
+    }
 
     const generatedQuestions = [];
-    for (const planItem of generationConfig.questionPlan) {
-      const question = await generateQuestion({
+    for (const item of originalItems) {
+      const question = item.question_bank;
+      const topicLabel =
+        typeof question.metadata?.topic_label === 'string'
+          ? question.metadata.topic_label.trim()
+          : '';
+
+      const questionVariant = await generateQuestion({
         bookId: typedTest.book_id,
-        cognitiveLevel: planItem.cognitiveLevel,
-        questionType: planItem.questionType,
+        cognitiveLevel: question.cognitive_level,
+        questionType: question.q_type,
         targetGrade: typedTest.target_grade,
         existingQuestionsContext: existingContext,
-        topicHint: planItem.topicHint,
-        teacherRequest: `Genera una variante distinta de la evaluacion original. Mantén el nivel, pero cambia el foco, formulacion o situacion evaluada.`,
+        topicHint: topicLabel,
+        teacherRequest: [
+          baseTeacherRequest,
+          'Genera una variante distinta de la evaluacion actual. Mantén el nivel, el foco pedagógico y el tipo de pregunta, pero cambia la formulacion o la situacion evaluada.',
+        ]
+          .filter(Boolean)
+          .join(' '),
         usedTopics,
       });
 
-      generatedQuestions.push(question);
-      existingContext += `- ${question.question_text}\n`;
-      const topicLabel = (question as any).metadata?.topic_label;
-      if (typeof topicLabel === 'string' && topicLabel.trim()) usedTopics.push(topicLabel);
+      generatedQuestions.push({
+        question: questionVariant,
+        points: Number(item.points || 1),
+      });
+      existingContext += `- ${questionVariant.question_text}\n`;
+
+      const generatedTopic =
+        typeof questionVariant.metadata?.topic_label === 'string'
+          ? questionVariant.metadata.topic_label.trim()
+          : '';
+      if (generatedTopic) {
+        usedTopics.push(generatedTopic);
+      }
     }
 
     let totalScore = 0;
-    const testItems = generatedQuestions.map((question: any, index: number) => {
-      const points =
-        question.q_type === 'development' || question.q_type === 'creative_writing' ? 3 : 1;
-      totalScore += points;
+    const testItems = generatedQuestions.map((entry, index) => {
+      totalScore += entry.points;
       return {
         test_id: newTest.id,
-        question_id: question.id,
+        question_id: entry.question.id,
         item_order: index + 1,
-        points,
+        points: entry.points,
       };
     });
 
@@ -134,7 +181,12 @@ export async function POST(
 
     if (scoreError) throw scoreError;
 
-    return NextResponse.json({ success: true, testId: newTest.id, label });
+    return NextResponse.json({
+      success: true,
+      testId: newTest.id,
+      label,
+      sourceQuestionCount: originalItems.length,
+    });
   } catch (error) {
     console.error('Error creating test variant:', error);
     return NextResponse.json(

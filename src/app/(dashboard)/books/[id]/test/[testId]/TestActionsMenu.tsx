@@ -11,7 +11,8 @@ type Props = {
   bookTitle: string;
   appUrl: string;
   isDemo: boolean;
-  editModeActive?: boolean;
+  activeMode?: 'edit' | 'add-question' | null;
+  versionLabel: string;
 };
 
 export default function TestActionsMenu({
@@ -21,7 +22,8 @@ export default function TestActionsMenu({
   bookTitle,
   appUrl,
   isDemo,
-  editModeActive = false,
+  activeMode = null,
+  versionLabel,
 }: Props) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -86,7 +88,11 @@ export default function TestActionsMenu({
         aria-expanded={open}
       >
         <span className="trigger-text">Opciones</span>
-        {editModeActive && <span className="edit-badge">Edicion activa</span>}
+        {activeMode && (
+          <span className="edit-badge">
+            {activeMode === 'edit' ? 'Edicion activa' : 'Agregar pregunta'}
+          </span>
+        )}
         <span className="trigger-icon">{open ? '−' : '+'}</span>
       </button>
 
@@ -95,14 +101,25 @@ export default function TestActionsMenu({
           <div className="actions-group">
             <p className="group-title">Gestion docente</p>
             <a
-              href={editModeActive ? `/books/${bookId}/test/${testId}` : `/books/${bookId}/test/${testId}?mode=edit`}
+              href={activeMode === 'edit' ? `/books/${bookId}/test/${testId}` : `/books/${bookId}/test/${testId}?mode=edit`}
               className="menu-link primary-link"
               onClick={() => setOpen(false)}
             >
-              {editModeActive ? 'Cerrar modo edicion' : 'Editar evaluacion'}
+              {activeMode === 'edit' ? 'Cerrar modo edicion' : 'Editar evaluacion'}
+            </a>
+            <a
+              href={
+                activeMode === 'add-question'
+                  ? `/books/${bookId}/test/${testId}`
+                  : `/books/${bookId}/test/${testId}?mode=add-question`
+              }
+              className="menu-link"
+              onClick={() => setOpen(false)}
+            >
+              {activeMode === 'add-question' ? 'Cerrar agregar pregunta' : 'Agregar pregunta'}
             </a>
             <button type="button" className="menu-link" onClick={handleCreateVariant} disabled={creatingVariant}>
-              {creatingVariant ? 'Creando variante...' : 'Crear variante A/B'}
+              {creatingVariant ? 'Creando variante...' : `Crear variante desde ${versionLabel}`}
             </button>
           </div>
 

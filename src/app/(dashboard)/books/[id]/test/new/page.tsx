@@ -426,17 +426,23 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
             <textarea className="input" rows={3} value={instructions} onChange={(event) => setInstructions(event.target.value)} />
           </div>
 
-          <div className="form-group">
-            <label>Encargo docente para la IA</label>
+          <div className="teacher-request-card">
+            <div className="teacher-request-head">
+              <div>
+                <p className="teacher-request-kicker">Criterio central del docente</p>
+                <label>Encargo docente para la IA</label>
+              </div>
+              <span className="teacher-request-pill">Define enfoque, temas y capitulos</span>
+            </div>
             <textarea
-              className="input"
-              rows={4}
+              className="input teacher-request-input"
+              rows={5}
               value={teacherRequest}
               onChange={(event) => setTeacherRequest(event.target.value)}
-              placeholder="Ej: evita preguntas repetidas sobre el protagonista y agrega foco en conflicto, capitulos finales y simbolismo."
+              placeholder="Ej: evita preguntas repetidas sobre el protagonista, prioriza capitulos finales y agrega foco en conflicto, simbolismo y decisiones del antagonista."
             />
             <small className="help-text">
-              Aqui puedes orientar la prueba por tema, profundidad, estilo o enfoque pedagógico.
+              Este encargo es la pauta pedagógica que la IA debe respetar al construir la prueba.
             </small>
           </div>
 
@@ -589,6 +595,43 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           color: var(--text-primary);
           font-weight: 600;
         }
+        .teacher-request-card {
+          margin-bottom: 1rem;
+          padding: 1.2rem;
+          border-radius: 1rem;
+          background: linear-gradient(135deg, rgba(255, 239, 220, 0.98) 0%, rgba(255, 248, 240, 0.95) 100%);
+          border: 1px solid rgba(217, 102, 52, 0.24);
+          box-shadow: 0 16px 40px rgba(217, 102, 52, 0.1);
+        }
+        .teacher-request-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.75rem;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          margin-bottom: 0.75rem;
+        }
+        .teacher-request-kicker {
+          margin: 0 0 0.25rem;
+          font-size: 0.75rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+        .teacher-request-pill {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.45rem 0.8rem;
+          border-radius: 999px;
+          background: rgba(217, 102, 52, 0.14);
+          color: #9d4d26;
+          font-size: 0.82rem;
+          font-weight: 700;
+        }
+        .teacher-request-input {
+          border-color: rgba(217, 102, 52, 0.3);
+          background: rgba(255, 255, 255, 0.96);
+        }
         .help-text {
           color: var(--text-muted);
           font-size: 0.82rem;
@@ -693,6 +736,9 @@ export default function NewTestPage({ params }: { params: { id: string } }) {
           }
         }
         @media (max-width: 768px) {
+          .teacher-request-head {
+            flex-direction: column;
+          }
           .action-bar,
           .summary-card {
             grid-template-columns: 1fr;

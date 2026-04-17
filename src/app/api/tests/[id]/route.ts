@@ -14,6 +14,8 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const teacherRequest =
+      typeof body.teacherRequest === 'string' ? body.teacherRequest.trim() : null;
     const payload = {
       title: typeof body.title === 'string' ? body.title.trim() : '',
       instructions: typeof body.instructions === 'string' ? body.instructions.trim() : '',
@@ -26,7 +28,7 @@ export async function PATCH(
 
     const { data: test, error: fetchError } = await supabase
       .from('tests')
-      .select('user_id')
+      .select('user_id, generation_config')
       .eq('id', params.id)
       .single();
 
@@ -35,9 +37,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized to update this test' }, { status: 403 });
     }
 
+    const currentGenerationConfig =
+      typeof (test as any).generation_config === 'object' && (test as any).generation_config !== null
+        ? (test as any).generation_config
+        : {};
+
     const { error: updateError } = await supabase
       .from('tests')
-      .update(payload)
+      .update({
+        ...payload,
+        generation_config: {
+          ...currentGenerationConfig,
+          teacherRequest,
+        },
+      })
       .eq('id', params.id);
 
     if (updateError) throw updateError;

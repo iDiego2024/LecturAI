@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type QuestionType =
@@ -34,9 +34,17 @@ type Props = {
   initialTitle: string;
   initialInstructions: string;
   initialTargetGrade: string;
+  initialTeacherRequest: string;
   initialQuestions: QuestionDraft[];
   initialEditMode?: boolean;
+  versionLabel: string;
 };
+
+const COGNITIVE_LEVELS = [
+  { value: 'locate', label: 'Localizar' },
+  { value: 'interpret', label: 'Interpretar' },
+  { value: 'reflect', label: 'Reflexionar' },
+] as const;
 
 const QUESTION_TYPES = [
   { value: 'multiple_choice', label: 'Seleccion multiple' },
@@ -44,12 +52,6 @@ const QUESTION_TYPES = [
   { value: 'development', label: 'Desarrollo' },
   { value: 'matching', label: 'Terminos pareados' },
   { value: 'creative_writing', label: 'Escritura creativa' },
-] as const;
-
-const COGNITIVE_LEVELS = [
-  { value: 'locate', label: 'Localizar' },
-  { value: 'interpret', label: 'Interpretar' },
-  { value: 'reflect', label: 'Reflexionar' },
 ] as const;
 
 function translateType(value: QuestionType) {
@@ -107,21 +109,21 @@ export default function TestEditorPanel({
   initialTitle,
   initialInstructions,
   initialTargetGrade,
+  initialTeacherRequest,
   initialQuestions,
   initialEditMode = false,
+  versionLabel,
 }: Props) {
   const router = useRouter();
   const [editMode, setEditMode] = useState(initialEditMode);
   const [title, setTitle] = useState(initialTitle);
   const [instructions, setInstructions] = useState(initialInstructions);
   const [targetGrade, setTargetGrade] = useState(initialTargetGrade);
-  const [topicHint, setTopicHint] = useState('');
-  const [teacherRequest, setTeacherRequest] = useState('');
-  const [questionType, setQuestionType] = useState<(typeof QUESTION_TYPES)[number]['value']>('multiple_choice');
-  const [cognitiveLevel, setCognitiveLevel] = useState<(typeof COGNITIVE_LEVELS)[number]['value']>('interpret');
+  const [teacherRequest, setTeacherRequest] = useState(initialTeacherRequest);
   const [saving, setSaving] = useState(false);
-  const [creatingQuestion, setCreatingQuestion] = useState(false);
-  const [questionForms, setQuestionForms] = useState<Record<string, any>>(() => buildInitialForms(initialQuestions));
+  const [questionForms, setQuestionForms] = useState<Record<string, any>>(() =>
+    buildInitialForms(initialQuestions)
+  );
   const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null);
   const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
 
@@ -129,6 +131,26 @@ export default function TestEditorPanel({
     () => [...initialQuestions].sort((a, b) => a.itemOrder - b.itemOrder),
     [initialQuestions]
   );
+
+  useEffect(() => {
+    setQuestionForms(buildInitialForms(initialQuestions));
+  }, [initialQuestions]);
+
+  useEffect(() => {
+    setEditMode(initialEditMode);
+  }, [initialEditMode]);
+
+  useEffect(() => {
+    setTitle(initialTitle);
+    setInstructions(initialInstructions);
+    setTargetGrade(initialTargetGrade);
+    setTeacherRequest(initialTeacherRequest);
+  }, [initialTitle, initialInstructions, initialTargetGrade, initialTeacherRequest]);
+
+  const closeEditMode = () => {
+    setEditMode(false);
+    router.push(window.location.pathname);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -140,6 +162,7 @@ export default function TestEditorPanel({
           title,
           instructions,
           targetGrade,
+          teacherRequest,
         }),
       });
 
@@ -150,34 +173,6 @@ export default function TestEditorPanel({
       alert(error instanceof Error ? error.message : 'No se pudo guardar la evaluacion.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCreateQuestion = async () => {
-    setCreatingQuestion(true);
-    try {
-      const res = await fetch(`/api/tests/${testId}/questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetGrade,
-          topicHint,
-          teacherRequest,
-          questionType,
-          cognitiveLevel,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'No se pudo crear la pregunta.');
-
-      setTopicHint('');
-      setTeacherRequest('');
-      router.refresh();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo crear la pregunta.');
-    } finally {
-      setCreatingQuestion(false);
     }
   };
 
@@ -236,7 +231,9 @@ export default function TestEditorPanel({
   };
 
   const handleDeleteQuestion = async (item: QuestionDraft) => {
-    const confirmed = window.confirm(`Se eliminara la pregunta ${item.itemOrder}. Esta accion no se puede deshacer.`);
+    const confirmed = window.confirm(
+      `Se eliminara la pregunta ${item.itemOrder}. Esta accion no se puede deshacer.`
+    );
     if (!confirmed) return;
 
     setDeletingQuestionId(item.id);
@@ -262,16 +259,12 @@ export default function TestEditorPanel({
           <div className="editor-header">
             <div>
               <p className="editor-kicker">Edicion docente</p>
-              <h3 className="editor-section-title">Controla la evaluacion antes de compartirla</h3>
+              <h3 className="editor-section-title">Ajusta la configuracion y revisa las preguntas existentes</h3>
+              <p className="editor-scope-copy">
+                Todo lo que guardes aqui modifica solo <strong>{versionLabel}</strong>.
+              </p>
             </div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                setEditMode(false);
-                router.push(window.location.pathname);
-              }}
-            >
+            <button type="button" className="btn btn-secondary" onClick={closeEditMode}>
               Cerrar modo edicion
             </button>
           </div>
@@ -283,7 +276,11 @@ export default function TestEditorPanel({
             </div>
             <div className="editor-block">
               <label>Curso</label>
-              <input className="input" value={targetGrade} onChange={(event) => setTargetGrade(event.target.value)} />
+              <input
+                className="input"
+                value={targetGrade}
+                onChange={(event) => setTargetGrade(event.target.value)}
+              />
             </div>
           </div>
 
@@ -297,79 +294,50 @@ export default function TestEditorPanel({
             />
           </div>
 
-          <div className="editor-actions">
-            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar datos generales'}
-            </button>
+          <div className="teacher-request-box">
+            <div className="teacher-request-head">
+              <div>
+                <p className="editor-kicker">Criterio pedagógico</p>
+                <h3 className="editor-section-title">Encargo docente para la IA</h3>
+              </div>
+              <span className="status-chip emphasis-chip">Guia el enfoque de toda la prueba</span>
+            </div>
+            <p className="teacher-request-copy">
+              Usa este espacio para indicar capitulos, temas, personajes, habilidades o sesgos que quieres priorizar. Esta pauta se conserva como referencia central de la evaluacion.
+            </p>
+            <textarea
+              className="input teacher-request-input"
+              rows={5}
+              value={teacherRequest}
+              onChange={(event) => setTeacherRequest(event.target.value)}
+              placeholder="Ej: concentra la prueba en los capitulos finales, evita preguntas literales repetidas y da prioridad al conflicto principal y al simbolismo."
+            />
           </div>
 
-          <div className="assistant-box">
-            <div className="assistant-head">
-              <div>
-                <p className="editor-kicker">Asistente IA</p>
-                <h3 className="editor-section-title">Agrega nuevas preguntas solo cuando el docente quiera intervenir</h3>
-              </div>
-              <span className="status-chip">Solo disponible en modo edicion</span>
-            </div>
-
-            <div className="editor-grid">
-              <div className="editor-block">
-                <label>Tipo de pregunta</label>
-                <select className="input" value={questionType} onChange={(event) => setQuestionType(event.target.value as any)}>
-                  {QUESTION_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="editor-block">
-                <label>Habilidad cognitiva</label>
-                <select className="input" value={cognitiveLevel} onChange={(event) => setCognitiveLevel(event.target.value as any)}>
-                  {COGNITIVE_LEVELS.map((level) => (
-                    <option key={level.value} value={level.value}>
-                      {level.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="editor-block">
-              <label>Tema o eje del libro</label>
-              <input
-                className="input"
-                value={topicHint}
-                onChange={(event) => setTopicHint(event.target.value)}
-                placeholder="Ej: relacion entre protagonista y antagonista, desenlace, simbolos del capitulo 5"
-              />
-            </div>
-
-            <div className="editor-block">
-              <label>Mensaje para la IA</label>
-              <textarea
-                className="input"
-                rows={4}
-                value={teacherRequest}
-                onChange={(event) => setTeacherRequest(event.target.value)}
-                placeholder="Ej: crea una pregunta mas desafiante, evita repetir contenidos ya evaluados y enfocate en las motivaciones del personaje."
-              />
-            </div>
-
-            <div className="editor-actions">
-              <button type="button" className="btn btn-primary btn-glow" onClick={handleCreateQuestion} disabled={creatingQuestion}>
-                {creatingQuestion ? 'Creando pregunta...' : 'Agregar pregunta con IA'}
-              </button>
-            </div>
+          <div className="editor-actions">
+            <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : `Guardar configuracion de ${versionLabel}`}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => router.push(`${window.location.pathname}?mode=add-question`)}
+            >
+              Agregar pregunta a esta version
+            </button>
           </div>
 
           <div className="question-manager">
             <div className="assistant-head">
               <div>
                 <p className="editor-kicker">Edicion de preguntas</p>
-                <h3 className="editor-section-title">Modifica o elimina preguntas sin intervenir la version automatica si no lo deseas</h3>
+                <h3 className="editor-section-title">Corrige, ajusta o elimina preguntas ya creadas</h3>
               </div>
               <span className="status-chip">{sortedQuestions.length} preguntas cargadas</span>
+            </div>
+
+            <div className="question-manager-note">
+              Las preguntas nuevas se agregan desde el modo separado <strong>Agregar pregunta</strong> para que la edición y la composición no se mezclen.
             </div>
 
             <div className="question-stack">
@@ -383,7 +351,12 @@ export default function TestEditorPanel({
                       <div>
                         <strong>Pregunta {item.itemOrder}</strong>
                         <p>
-                          {translateType(item.question.q_type)} · {COGNITIVE_LEVELS.find((level) => level.value === item.question.cognitive_level)?.label}
+                          {translateType(item.question.q_type)} ·{' '}
+                          {
+                            COGNITIVE_LEVELS.find(
+                              (level) => level.value === item.question.cognitive_level
+                            )?.label
+                          }
                         </p>
                       </div>
                       <div className="question-head-actions">
@@ -394,7 +367,9 @@ export default function TestEditorPanel({
                             type="number"
                             min={1}
                             value={form.points}
-                            onChange={(event) => handleQuestionField(item.id, 'points', event.target.value)}
+                            onChange={(event) =>
+                              handleQuestionField(item.id, 'points', event.target.value)
+                            }
                           />
                         </label>
                         <button
@@ -422,7 +397,9 @@ export default function TestEditorPanel({
                         className="input"
                         rows={3}
                         value={form.questionText}
-                        onChange={(event) => handleQuestionField(item.id, 'questionText', event.target.value)}
+                        onChange={(event) =>
+                          handleQuestionField(item.id, 'questionText', event.target.value)
+                        }
                       />
                     </div>
 
@@ -433,7 +410,9 @@ export default function TestEditorPanel({
                           className="input"
                           rows={item.question.q_type === 'true_false' ? 2 : 3}
                           value={form.correctAnswer}
-                          onChange={(event) => handleQuestionField(item.id, 'correctAnswer', event.target.value)}
+                          onChange={(event) =>
+                            handleQuestionField(item.id, 'correctAnswer', event.target.value)
+                          }
                         />
                       </div>
                       <div className="editor-block">
@@ -441,7 +420,9 @@ export default function TestEditorPanel({
                         <input
                           className="input"
                           value={form.topicLabel}
-                          onChange={(event) => handleQuestionField(item.id, 'topicLabel', event.target.value)}
+                          onChange={(event) =>
+                            handleQuestionField(item.id, 'topicLabel', event.target.value)
+                          }
                         />
                       </div>
                     </div>
@@ -453,7 +434,9 @@ export default function TestEditorPanel({
                           className="input"
                           rows={4}
                           value={form.distractorsText}
-                          onChange={(event) => handleQuestionField(item.id, 'distractorsText', event.target.value)}
+                          onChange={(event) =>
+                            handleQuestionField(item.id, 'distractorsText', event.target.value)
+                          }
                           placeholder="Una alternativa por linea"
                         />
                       </div>
@@ -466,7 +449,9 @@ export default function TestEditorPanel({
                           className="input"
                           rows={5}
                           value={form.matchingPairsText}
-                          onChange={(event) => handleQuestionField(item.id, 'matchingPairsText', event.target.value)}
+                          onChange={(event) =>
+                            handleQuestionField(item.id, 'matchingPairsText', event.target.value)
+                          }
                           placeholder="Concepto => relacion correcta"
                         />
                       </div>
@@ -479,7 +464,9 @@ export default function TestEditorPanel({
                           <input
                             className="input"
                             value={form.creativeTask}
-                            onChange={(event) => handleQuestionField(item.id, 'creativeTask', event.target.value)}
+                            onChange={(event) =>
+                              handleQuestionField(item.id, 'creativeTask', event.target.value)
+                            }
                           />
                         </div>
                         <div className="editor-block">
@@ -488,14 +475,17 @@ export default function TestEditorPanel({
                             className="input"
                             rows={4}
                             value={form.writingFocusText}
-                            onChange={(event) => handleQuestionField(item.id, 'writingFocusText', event.target.value)}
+                            onChange={(event) =>
+                              handleQuestionField(item.id, 'writingFocusText', event.target.value)
+                            }
                             placeholder="Un foco por linea"
                           />
                         </div>
                       </>
                     )}
 
-                    {(item.question.q_type === 'development' || item.question.q_type === 'creative_writing') && (
+                    {(item.question.q_type === 'development' ||
+                      item.question.q_type === 'creative_writing') && (
                       <div className="editor-block">
                         <label>Rubrica o pauta</label>
                         <textarea
@@ -513,7 +503,9 @@ export default function TestEditorPanel({
                         className="input"
                         rows={3}
                         value={form.justification}
-                        onChange={(event) => handleQuestionField(item.id, 'justification', event.target.value)}
+                        onChange={(event) =>
+                          handleQuestionField(item.id, 'justification', event.target.value)
+                        }
                       />
                     </div>
                   </article>
@@ -529,17 +521,20 @@ export default function TestEditorPanel({
           margin: 1rem 0 2rem;
         }
         .editor-panel {
-          border: 1px solid var(--border-light);
-          background: linear-gradient(180deg, rgba(255, 252, 247, 0.98) 0%, rgba(255, 244, 231, 0.94) 100%);
-        }
-        .editor-panel {
           padding: 1.4rem;
+          border: 1px solid var(--border-light);
+          background: linear-gradient(
+            180deg,
+            rgba(255, 252, 247, 0.98) 0%,
+            rgba(255, 244, 231, 0.94) 100%
+          );
         }
         .editor-header,
         .assistant-head,
         .question-editor-head,
         .question-head-actions,
-        .editor-actions {
+        .editor-actions,
+        .teacher-request-head {
           display: flex;
           gap: 0.75rem;
           align-items: flex-start;
@@ -547,7 +542,8 @@ export default function TestEditorPanel({
         }
         .editor-header,
         .assistant-head,
-        .question-editor-head {
+        .question-editor-head,
+        .teacher-request-head {
           justify-content: space-between;
           margin-bottom: 1rem;
         }
@@ -558,13 +554,15 @@ export default function TestEditorPanel({
           text-transform: uppercase;
           color: var(--text-muted);
         }
-        .editor-title,
-        .editor-section-title {
-          margin: 0;
-          color: var(--text-primary);
+        .editor-scope-copy {
+          margin: 0.35rem 0 0;
+          color: var(--text-secondary);
+          line-height: 1.55;
         }
         .editor-section-title {
+          margin: 0;
           font-size: 1.05rem;
+          color: var(--text-primary);
         }
         .editor-grid {
           display: grid;
@@ -582,11 +580,31 @@ export default function TestEditorPanel({
           font-weight: 600;
           font-size: 0.92rem;
         }
-        .assistant-box,
+        .teacher-request-box,
         .question-manager {
           margin-top: 1.6rem;
           padding-top: 1.25rem;
           border-top: 1px solid var(--border-light);
+        }
+        .teacher-request-box {
+          padding: 1.25rem;
+          border-radius: 1.1rem;
+          border: 1px solid rgba(217, 102, 52, 0.22);
+          background: linear-gradient(
+            135deg,
+            rgba(255, 239, 220, 0.98) 0%,
+            rgba(255, 248, 240, 0.95) 100%
+          );
+          box-shadow: 0 16px 40px rgba(217, 102, 52, 0.1);
+        }
+        .teacher-request-copy {
+          margin: 0 0 0.85rem;
+          color: var(--text-secondary);
+          line-height: 1.6;
+        }
+        .teacher-request-input {
+          border-color: rgba(217, 102, 52, 0.3);
+          background: rgba(255, 255, 255, 0.96);
         }
         .status-chip {
           display: inline-flex;
@@ -598,8 +616,9 @@ export default function TestEditorPanel({
           font-size: 0.82rem;
           font-weight: 700;
         }
-        .btn-glow {
-          box-shadow: 0 12px 26px rgba(217, 102, 52, 0.24);
+        .emphasis-chip {
+          background: rgba(217, 102, 52, 0.14);
+          color: #9d4d26;
         }
         .btn-small {
           padding: 0.72rem 0.95rem;
@@ -609,6 +628,15 @@ export default function TestEditorPanel({
           background: linear-gradient(135deg, #b84a36 0%, #d9654d 100%);
           color: #fff;
           border: none;
+        }
+        .question-manager-note {
+          margin-bottom: 1rem;
+          padding: 0.95rem 1rem;
+          border-radius: 0.9rem;
+          background: rgba(255, 250, 242, 0.92);
+          border: 1px solid rgba(82, 52, 26, 0.08);
+          color: var(--text-secondary);
+          line-height: 1.55;
         }
         .question-stack {
           display: grid;
@@ -636,7 +664,8 @@ export default function TestEditorPanel({
         @media (max-width: 768px) {
           .editor-header,
           .assistant-head,
-          .question-editor-head {
+          .question-editor-head,
+          .teacher-request-head {
             flex-direction: column;
           }
           .question-head-actions {
