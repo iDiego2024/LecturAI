@@ -36,6 +36,7 @@ function isQuestionPlan(value: unknown): value is QuestionPlanItem[] {
 }
 
 export async function POST(request: Request) {
+  const createdQuestionIds: string[] = [];
   try {
     const supabase = createClient();
     const {
@@ -116,6 +117,9 @@ export async function POST(request: Request) {
       }
 
       questions.push(question);
+      if (typeof (question as any).id === 'string') {
+        createdQuestionIds.push((question as any).id);
+      }
       const topicLabel = (question as any).metadata?.topic_label;
       if (typeof topicLabel === 'string' && topicLabel.trim()) {
         usedTopics.push(topicLabel);
@@ -126,9 +130,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, count: questions.length, questions });
   } catch (error) {
     console.error('API Error generating questions', error);
+    if (createdQuestionIds.length > 0) {
+      try {
+        const supabase = createClient();
+        await supabase.from('question_bank').delete().in('id', createdQuestionIds);
+      } catch (cleanupError) {
+        console.error('API Error cleaning generated questions', cleanupError);
+      }
+    }
+
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const isTemporaryModelFailure =
+      message.includes('429') ||
+      message.includes('500') ||
+      message.includes('502') ||
+      message.includes('503') ||
+      message.includes('504') ||
+      message.includes('Service Unavailable') ||
+      message.includes('high demand');
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
+      {
+        error: isTemporaryModelFailure
+          ? 'La IA esta con alta demanda en este momento. Intenta nuevamente en unos minutos.'
+          : message,
+      },
+      { status: isTemporaryModelFailure ? 503 : 500 }
     );
   }
 }

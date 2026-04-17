@@ -20,6 +20,58 @@ type QuestionConfig = {
   usedTopics?: string[];
 };
 
+const MAX_GENERATION_RETRIES = 4;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableGenerationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return (
+    message.includes('429') ||
+    message.includes('500') ||
+    message.includes('502') ||
+    message.includes('503') ||
+    message.includes('504') ||
+    message.includes('Service Unavailable') ||
+    message.includes('high demand') ||
+    message.includes('temporarily unavailable')
+  );
+}
+
+async function generateQuestionPayload(
+  prompt: string,
+  context: { bookId: string; questionType: SupportedQuestionType; targetGrade: string }
+) {
+  const model = getGenerationModel();
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_GENERATION_RETRIES; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      return parseJsonResponse(result.response.text());
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGenerationError(error) || attempt === MAX_GENERATION_RETRIES) {
+        break;
+      }
+
+      const delayMs = Math.pow(2, attempt) * 1500 + Math.floor(Math.random() * 400);
+      console.warn(
+        `[Book ${context.bookId}] Gemini generation retry ${attempt}/${MAX_GENERATION_RETRIES} for ${context.questionType} (${context.targetGrade}) after ${delayMs}ms`,
+        error
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('No fue posible generar la pregunta en este momento.');
+}
+
 function parseJsonResponse(responseText: string) {
   return JSON.parse(responseText.replace(/```json\n?|\n?```/g, '').trim());
 }
@@ -100,7 +152,6 @@ function resolveTopicHint(topicCandidates: string[], usedTopics: string[], reque
 
 export async function generateQuestion(config: QuestionConfig) {
   const supabase = createClient();
-  const model = getGenerationModel();
 
   try {
     const { data: book } = await supabase
@@ -141,8 +192,11 @@ export async function generateQuestion(config: QuestionConfig) {
       config.teacherRequest || ''
     );
 
-    const result = await model.generateContent(prompt);
-    const qData = parseJsonResponse(result.response.text());
+    const qData = await generateQuestionPayload(prompt, {
+      bookId: config.bookId,
+      questionType: config.questionType,
+      targetGrade: config.targetGrade,
+    });
 
     const { data: question, error } = await supabase
       .from('question_bank')
